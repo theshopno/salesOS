@@ -1,7 +1,7 @@
 [Unit]
 Description=SalesOS AMI Consumer (Asterisk event ingestion)
-After=network.target redis.service mariadb.service
-Requires=redis.service mariadb.service
+After=network.target redis.service redis-server.service mysql.service mariadb.service
+Wants=redis.service redis-server.service mysql.service mariadb.service
 
 [Service]
 Type=simple

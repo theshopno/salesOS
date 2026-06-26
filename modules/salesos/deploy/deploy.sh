@@ -117,13 +117,25 @@ run_remote "systemctl daemon-reload"
 run_remote "systemctl enable salesos-ami salesos-archiver salesos-ws"
 success "systemd units enabled"
 
-# ── Nginx WebSocket proxy snippet ─────────────────────────────────────────────
-info "Installing Nginx WebSocket proxy snippet..."
-run_remote "mkdir -p ${NGINX_SNIPPET_DIR}"
-run_remote "sed 's|8080|${WS_PORT}|g' ${MODULE_DIR}/nginx/salesos_ws.conf > ${NGINX_SNIPPET_DIR}/salesos_ws.conf"
-warn "Remember to add:  include ${NGINX_SNIPPET_DIR}/salesos_ws.conf;  inside your server {} block in Nginx"
-run_remote "nginx -t" && run_remote "systemctl reload nginx" || warn "Nginx reload skipped (test failed or nginx not in use)"
-success "Nginx snippet installed"
+# ── WebSocket proxy snippet (Nginx or Apache2) ────────────────────────────────
+info "Installing WebSocket proxy snippet..."
+if run_remote "command -v nginx >/dev/null 2>&1 && systemctl is-active --quiet nginx"; then
+  run_remote "mkdir -p ${NGINX_SNIPPET_DIR}"
+  run_remote "sed 's|SALESOS_WS_PORT|${WS_PORT}|g' ${MODULE_DIR}/nginx/salesos_ws.conf > ${NGINX_SNIPPET_DIR}/salesos_ws.conf"
+  run_remote "nginx -t && systemctl reload nginx" || warn "Nginx config test failed — check ${NGINX_SNIPPET_DIR}/salesos_ws.conf"
+  warn "Remember to add:  include ${NGINX_SNIPPET_DIR}/salesos_ws.conf;  inside your server {} block"
+  success "Nginx WS snippet installed"
+elif run_remote "command -v apache2ctl >/dev/null 2>&1 && systemctl is-active --quiet apache2"; then
+  APACHE_CONF_DIR="${APACHE_CONF_DIR:-/etc/apache2/conf-available}"
+  run_remote "mkdir -p ${APACHE_CONF_DIR}"
+  run_remote "sed 's|SALESOS_WS_PORT|${WS_PORT}|g' ${MODULE_DIR}/apache/salesos_ws.conf > ${APACHE_CONF_DIR}/salesos_ws.conf"
+  run_remote "a2enmod proxy proxy_http proxy_wstunnel 2>/dev/null || true"
+  run_remote "a2enconf salesos_ws 2>/dev/null || true"
+  run_remote "apache2ctl configtest && systemctl reload apache2" || warn "Apache config test failed — check ${APACHE_CONF_DIR}/salesos_ws.conf"
+  success "Apache2 WS proxy config installed"
+else
+  warn "Neither Nginx nor Apache2 detected as active — WS proxy NOT configured. Install manually."
+fi
 
 # ── Fix file permissions ──────────────────────────────────────────────────────
 info "Setting file permissions..."

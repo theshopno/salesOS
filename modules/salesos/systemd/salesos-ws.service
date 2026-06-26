@@ -1,7 +1,7 @@
 [Unit]
 Description=SalesOS WebSocket Server (real-time browser relay)
-After=network.target redis.service
-Requires=redis.service
+After=network.target redis.service redis-server.service
+Wants=redis.service redis-server.service
 
 [Service]
 Type=simple
