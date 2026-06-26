@@ -1,0 +1,15 @@
+# CRM application — secrets and generated files
+application/config/app-config.php
+application/logs/
+application/cache/
+vendor/
+
+# SalesOS daemon — contains production DB credentials and secrets
+modules/salesos/daemons/config.php
+
+# OS / editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/

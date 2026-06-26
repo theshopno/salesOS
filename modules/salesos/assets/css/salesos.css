@@ -1,0 +1,193 @@
+/* SalesOS Telephony Module Styles */
+
+/* ── Call Popup ─────────────────────────────────────────────── */
+.salesos-popup {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+    margin-bottom: 12px;
+    overflow: hidden;
+    animation: salesos-slide-in .3s ease;
+    border-left: 4px solid #27ae60;
+}
+
+.salesos-popup.inbound  { border-left-color: #27ae60; }
+.salesos-popup.outbound { border-left-color: #2980b9; }
+.salesos-popup.missed   { border-left-color: #e74c3c; }
+
+@keyframes salesos-slide-in {
+    from { transform: translateX(120%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+
+.salesos-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 6px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+
+.salesos-popup-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+}
+
+.salesos-popup-dir {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    color: #fff;
+}
+
+.salesos-popup-dir.inbound  { background: #27ae60; }
+.salesos-popup-dir.outbound { background: #2980b9; }
+
+.salesos-popup-body {
+    padding: 10px 14px;
+}
+
+.salesos-popup-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    letter-spacing: 1px;
+}
+
+.salesos-popup-name {
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-top: 2px;
+}
+
+.salesos-popup-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.salesos-popup-actions a,
+.salesos-popup-actions button {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.salesos-btn-view    { background: #3498db; color: #fff; }
+.salesos-btn-close   { background: #ecf0f1; color: #555; }
+
+.salesos-popup-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #999;
+    line-height: 1;
+    padding: 0;
+}
+
+.salesos-popup-timer {
+    font-size: 11px;
+    color: #aaa;
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* ── Dialer ─────────────────────────────────────────────────── */
+.salesos-dialer {
+    position: fixed;
+    bottom: 76px;
+    left: 20px;
+    z-index: 9998;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+    width: 260px;
+    overflow: hidden;
+}
+
+.salesos-dialer-header {
+    background: #2c3e50;
+    color: #fff;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.salesos-close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+
+.salesos-dialer-body {
+    padding: 14px;
+}
+
+.salesos-dial-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.salesos-dial-input:focus {
+    border-color: #3498db;
+}
+
+.salesos-call-btn {
+    width: 100%;
+    padding: 10px;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.salesos-call-btn:hover {
+    background: #219a52;
+}
+
+/* ── Inline call button (on phone numbers) ──────────────────── */
+.salesos-call-inline {
+    display: inline-block;
+    background: #27ae60;
+    color: #fff !important;
+    padding: 1px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    text-decoration: none !important;
+    margin-left: 4px;
+}
+
+.salesos-call-inline:hover { background: #219a52; }
+
+/* ── Recording player ───────────────────────────────────────── */
+audio {
+    border-radius: 20px;
+    outline: none;
+}

@@ -1,0 +1,9 @@
+{
+    "system_name": "salesos",
+    "headers_name": "SalesOS Telephony",
+    "description": "Asterisk PBX telephony integration for Perfex CRM. Agent mapping, call logging, CDR sync, lead matching and call popup.",
+    "version": "1.1.0",
+    "requires_at_least": "2.3.4",
+    "author": "SalesOS",
+    "website": ""
+}
