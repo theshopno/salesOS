@@ -42,17 +42,18 @@ function salesos_register_permissions(): void
     register_staff_capabilities('salesos', [
         'capabilities' => [
             'view'     => 'View Dashboard',
+            'manage'   => 'Manage Agents & Extensions',
             'settings' => 'Manage Settings',
         ],
     ], 'SalesOS');
 }
 
-// ── Menu — Phase 0 shell only (Settings); Dashboard/Calls/Agents land in
-//    Phase 1 as the corresponding packs are built ─────────────────────────
+// ── Menu — Phase 1: Settings + Agents. Dashboard/Calls land as those
+//    packs are built ──────────────────────────────────────────────────────
 
 function salesos_register_menu(): void
 {
-    if (!staff_can('settings', SALESOS_MODULE_NAME)) {
+    if (!staff_can('settings', SALESOS_MODULE_NAME) && !staff_can('manage', SALESOS_MODULE_NAME)) {
         return;
     }
 
@@ -65,10 +66,21 @@ function salesos_register_menu(): void
         'position' => 25,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'salesos-settings',
-        'name'     => 'Settings',
-        'href'     => admin_url('salesos/settings'),
-        'position' => 5,
-    ]);
+    if (staff_can('manage', SALESOS_MODULE_NAME)) {
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'salesos-agents',
+            'name'     => 'Agents',
+            'href'     => admin_url('salesos/agents'),
+            'position' => 3,
+        ]);
+    }
+
+    if (staff_can('settings', SALESOS_MODULE_NAME)) {
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'salesos-settings',
+            'name'     => 'Settings',
+            'href'     => admin_url('salesos/settings'),
+            'position' => 5,
+        ]);
+    }
 }
