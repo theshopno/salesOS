@@ -56,6 +56,7 @@ function salesos_register_permissions(): void
     register_staff_capabilities('salesos', [
         'capabilities' => [
             'view'     => 'View Dashboard',
+            'make'     => 'Make Outbound Calls',
             'manage'   => 'Manage Agents & Extensions',
             'settings' => 'Manage Settings',
         ],
@@ -97,4 +98,45 @@ function salesos_register_menu(): void
             'position' => 5,
         ]);
     }
+}
+
+// ── Lead/client tab injection — unified call-history tab ───────────────────
+
+hooks()->add_action('after_lead_lead_tabs',     'salesos_lead_tab_header');
+hooks()->add_action('after_lead_tabs_content',  'salesos_lead_tab_content');
+hooks()->add_action('after_customer_admins_tab', 'salesos_client_tab_header');
+hooks()->add_action('after_customer_tabs_content', 'salesos_client_tab_content');
+
+function salesos_lead_tab_header(): void
+{
+    if (!staff_can('view', SALESOS_MODULE_NAME)) {
+        return;
+    }
+    echo '<li role="presentation"><a href="#salesos_call_history" aria-controls="salesos_call_history" role="tab" data-toggle="tab"><i class="fa fa-phone"></i> ' . _l('Call History') . '</a></li>';
+}
+
+function salesos_lead_tab_content(mixed $lead): void
+{
+    if (!staff_can('view', SALESOS_MODULE_NAME) || !$lead) {
+        return;
+    }
+    $CI = &get_instance();
+    $CI->load->view(SALESOS_MODULE_NAME . '/partials/call_history_tab', ['entity' => $lead, 'entity_type' => 'lead']);
+}
+
+function salesos_client_tab_header(): void
+{
+    if (!staff_can('view', SALESOS_MODULE_NAME)) {
+        return;
+    }
+    echo '<li role="presentation"><a href="#salesos_call_history" aria-controls="salesos_call_history" role="tab" data-toggle="tab"><i class="fa fa-phone"></i> ' . _l('Call History') . '</a></li>';
+}
+
+function salesos_client_tab_content(mixed $client): void
+{
+    if (!staff_can('view', SALESOS_MODULE_NAME) || !$client) {
+        return;
+    }
+    $CI = &get_instance();
+    $CI->load->view(SALESOS_MODULE_NAME . '/partials/call_history_tab', ['entity' => $client, 'entity_type' => 'client']);
 }
