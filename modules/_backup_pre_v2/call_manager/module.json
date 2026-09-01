@@ -1,0 +1,9 @@
+{
+    "system_name": "call_manager",
+    "headers_name": "Call Manager",
+    "description": "Integrates Issabel PBX call history and recordings.",
+    "version": "1.0.0",
+    "requires_at_least": "2.3.4",
+    "author": "Antigravity",
+    "website": "https://perfexcrm.com"
+}
