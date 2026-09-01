@@ -300,6 +300,22 @@ two different fixes:
   host/port/user/secret and CDR DB host/user/password/database — these are exactly the
   values the next step consumes.
 
+**1a. CDR database reachability — SSH tunnel, not an exposed DB port.** Discovered
+while building Phase 1's CDR sync: `provision_pbx.sh` deliberately leaves MariaDB
+bound to `127.0.0.1` on the PBX (§8a's own principle — least exposure on a box that
+may be shared with other tenants, as `ecare` turned out to be). So the CRM can't reach
+it directly over the network. Rather than opening the DB port (which would mean
+touching a shared MariaDB instance's `bind-address` and restarting it — real risk to
+whatever else lives on that instance, and a bigger attack surface for everyone on the
+box, not just salesos), the chosen fix is an **SSH tunnel**: a dedicated,
+restricted-use keypair (`command=`, `no-pty`, `permitopen="127.0.0.1:3306"` in the
+PBX's `authorized_keys` — this key can do nothing but forward to that one port) held
+open by `deploy/systemd/salesos-cdr-tunnel.service` (`Restart=always`), forwarding a
+local port (e.g. `127.0.0.1:13306`) to the PBX's `127.0.0.1:3306`. `Cdr_sync_service`
+then just points its CDR DB host/port at the local tunnel endpoint — from its
+perspective it's a normal DB connection, the tunnel is invisible. Costs one persistent
+process to keep alive per PBX; buys zero change to the PBX's own DB exposure.
+
 **2. CRM-side (which PBX to talk to) — must be settings-driven, not hardcoded:**
 - Web-app-side AMI/CDR connection details belong in the `salesos_settings` table (§6),
   editable from the Settings "Features"/"PBX" tab — pointing salesos at a different PBX

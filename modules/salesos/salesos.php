@@ -28,11 +28,25 @@ function salesos_activation_hook(): void
 hooks()->add_action('app_init', 'salesos_load_resources');
 hooks()->add_action('admin_init', 'salesos_register_menu');
 hooks()->add_action('admin_init', 'salesos_register_permissions');
+hooks()->add_action('after_cron_run', 'salesos_cron');
 
 function salesos_load_resources(): void
 {
     $CI = &get_instance();
     $CI->load->helper(SALESOS_MODULE_NAME . '/' . SALESOS_MODULE_NAME);
+}
+
+function salesos_cron(): void
+{
+    $CI = &get_instance();
+    $CI->load->helper(SALESOS_MODULE_NAME . '/' . SALESOS_MODULE_NAME);
+
+    if (salesos_get_option('salesos_core_telephony', '0') !== '1') {
+        return;
+    }
+
+    $CI->load->library(SALESOS_MODULE_NAME . '/Cdr_sync_service');
+    $CI->cdr_sync_service->sync();
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────

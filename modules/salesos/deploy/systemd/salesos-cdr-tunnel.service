@@ -1,0 +1,32 @@
+[Unit]
+Description=salesos v2 — SSH tunnel to PBX CDR database (§8a)
+# Forwards a local port to the PBX's localhost-only MariaDB (3306), so
+# Cdr_sync_service never needs the PBX to expose its DB on the network.
+# ServerAlive* makes ssh itself exit on a stale connection; Restart=always
+# has systemd bring it back. Prefer autossh if it's installed — same idea,
+# faster reconnects — but plain ssh + systemd is enough on its own.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+# Adjust host/port/key/target to match your provision_pbx.sh output and where
+# the tunnel-only keypair was generated (see docs/salesos-v2-architecture-plan.md §8a).
+Environment=PBX_HOST=CHANGE_ME
+Environment=PBX_SSH_USER=CHANGE_ME
+Environment=TUNNEL_KEY=/etc/salesos/salesos_cdr_tunnel
+Environment=LOCAL_PORT=13306
+ExecStart=/usr/bin/ssh -N \
+    -o StrictHostKeyChecking=accept-new \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -i ${TUNNEL_KEY} \
+    -L 127.0.0.1:${LOCAL_PORT}:127.0.0.1:3306 \
+    ${PBX_SSH_USER}@${PBX_HOST}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

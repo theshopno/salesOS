@@ -110,6 +110,7 @@
                         </label>
                     </div>
 
+                </div>
                 <div role="tabpanel" class="tab-pane" id="connection">
 
                     <p class="text-muted">
@@ -172,6 +173,11 @@
                         </div>
                     </div>
 
+                    <button type="button" class="btn btn-default btn-sm" id="btn-sync-cdr">
+                        <i class="fa fa-refresh"></i> Sync CDR Now
+                    </button>
+                    <span id="cdr-sync-result" class="tw-ml-2"></span>
+
                 </div>
                 </div>
 
@@ -205,6 +211,32 @@ document.getElementById('btn-test-ami').addEventListener('click', function () {
         result.innerHTML = data.ok
             ? '<span class="text-success"><i class="fa fa-check-circle"></i> ' + data.message + '</span>'
             : '<span class="text-danger"><i class="fa fa-times-circle"></i> ' + data.message + '</span>';
+    })
+    .catch(function () {
+        result.innerHTML = '<span class="text-danger">Request failed.</span>';
+    })
+    .finally(function () { btn.disabled = false; });
+});
+
+document.getElementById('btn-sync-cdr').addEventListener('click', function () {
+    var btn = this;
+    var result = document.getElementById('cdr-sync-result');
+    btn.disabled = true;
+    result.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing…';
+
+    fetch('<?= admin_url('salesos/settings/sync_cdr') ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: '<?= $this->security->get_csrf_token_name() ?>=<?= $this->security->get_csrf_hash() ?>',
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        result.innerHTML = data.ok
+            ? '<span class="text-success"><i class="fa fa-check-circle"></i> Synced ' + data.synced + ' call(s).</span>'
+            : '<span class="text-danger"><i class="fa fa-times-circle"></i> ' + (data.error || 'Sync failed') + '</span>';
     })
     .catch(function () {
         result.innerHTML = '<span class="text-danger">Request failed.</span>';

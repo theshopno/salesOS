@@ -80,6 +80,17 @@ class Settings extends AdminController
         echo json_encode($this->ami_service->test_connection());
     }
 
+    /** AJAX: Settings → Connection → Sync CDR Now button. */
+    public function sync_cdr()
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+        }
+
+        $this->load->library(SALESOS_MODULE_NAME . '/Cdr_sync_service');
+        echo json_encode($this->cdr_sync_service->sync());
+    }
+
     private function _save(): void
     {
         $gate = salesos_voice_escalation_gate_status();
