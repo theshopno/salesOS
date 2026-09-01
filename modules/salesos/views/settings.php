@@ -18,6 +18,11 @@
                         <?= _l('salesos_features_tab') ?: 'Features' ?>
                     </a>
                 </li>
+                <li role="presentation">
+                    <a href="#connection" aria-controls="connection" role="tab" data-toggle="tab">
+                        <?= _l('salesos_connection_tab') ?: 'Connection' ?>
+                    </a>
+                </li>
             </ul>
 
             <form method="POST" action="<?= admin_url('salesos/settings') ?>">
@@ -105,6 +110,68 @@
                         </label>
                     </div>
 
+                <div role="tabpanel" class="tab-pane" id="connection">
+
+                    <p class="text-muted">
+                        Which PBX salesos talks to — settings-driven per §8a, not
+                        hardcoded. Get these values from <code>provision_pbx.sh</code>'s
+                        output file after provisioning a PBX.
+                    </p>
+
+                    <h4>AMI</h4>
+                    <div class="row">
+                        <div class="col-md-8 form-group">
+                            <label for="salesos_ami_host">Host</label>
+                            <input type="text" name="salesos_ami_host" id="salesos_ami_host" class="form-control" value="<?= e($salesos_ami_host) ?>" placeholder="e.g. 100.85.86.93">
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="salesos_ami_port">Port</label>
+                            <input type="number" name="salesos_ami_port" id="salesos_ami_port" class="form-control" value="<?= e($salesos_ami_port) ?>">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="salesos_ami_username">Username</label>
+                            <input type="text" name="salesos_ami_username" id="salesos_ami_username" class="form-control" value="<?= e($salesos_ami_username) ?>">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="salesos_ami_secret">Secret</label>
+                            <input type="password" name="salesos_ami_secret" id="salesos_ami_secret" class="form-control" value="<?= e($salesos_ami_secret) ?>" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-default btn-sm" id="btn-test-ami">
+                        <i class="fa fa-plug"></i> Test Connection
+                    </button>
+                    <span id="ami-test-result" class="tw-ml-2"></span>
+
+                    <hr>
+                    <h4>CDR Database</h4>
+                    <div class="row">
+                        <div class="col-md-8 form-group">
+                            <label for="salesos_cdr_db_host">Host</label>
+                            <input type="text" name="salesos_cdr_db_host" id="salesos_cdr_db_host" class="form-control" value="<?= e($salesos_cdr_db_host) ?>">
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="salesos_cdr_db_port">Port</label>
+                            <input type="number" name="salesos_cdr_db_port" id="salesos_cdr_db_port" class="form-control" value="<?= e($salesos_cdr_db_port) ?>">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label for="salesos_cdr_db_name">Database</label>
+                            <input type="text" name="salesos_cdr_db_name" id="salesos_cdr_db_name" class="form-control" value="<?= e($salesos_cdr_db_name) ?>">
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="salesos_cdr_db_user">User</label>
+                            <input type="text" name="salesos_cdr_db_user" id="salesos_cdr_db_user" class="form-control" value="<?= e($salesos_cdr_db_user) ?>">
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="salesos_cdr_db_password">Password</label>
+                            <input type="password" name="salesos_cdr_db_password" id="salesos_cdr_db_password" class="form-control" value="<?= e($salesos_cdr_db_password) ?>" autocomplete="new-password">
+                        </div>
+                    </div>
+
                 </div>
                 </div>
 
@@ -117,5 +184,33 @@
 </div>
 </div>
 </div>
+
+<script>
+document.getElementById('btn-test-ami').addEventListener('click', function () {
+    var btn = this;
+    var result = document.getElementById('ami-test-result');
+    btn.disabled = true;
+    result.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Testing…';
+
+    fetch('<?= admin_url('salesos/settings/test_ami') ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: '<?= $this->security->get_csrf_token_name() ?>=<?= $this->security->get_csrf_hash() ?>',
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        result.innerHTML = data.ok
+            ? '<span class="text-success"><i class="fa fa-check-circle"></i> ' + data.message + '</span>'
+            : '<span class="text-danger"><i class="fa fa-times-circle"></i> ' + data.message + '</span>';
+    })
+    .catch(function () {
+        result.innerHTML = '<span class="text-danger">Request failed.</span>';
+    })
+    .finally(function () { btn.disabled = false; });
+});
+</script>
 
 <?php init_tail(); ?>

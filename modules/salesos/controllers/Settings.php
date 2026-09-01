@@ -22,6 +22,19 @@ class Settings extends AdminController
         'salesos_ai_model',
     ];
 
+    /** Connection settings (§8a) — where salesos points, not tied to any one box. */
+    private const CONNECTION_KEYS = [
+        'salesos_ami_host',
+        'salesos_ami_port',
+        'salesos_ami_username',
+        'salesos_ami_secret',
+        'salesos_cdr_db_host',
+        'salesos_cdr_db_port',
+        'salesos_cdr_db_name',
+        'salesos_cdr_db_user',
+        'salesos_cdr_db_password',
+    ];
+
     public function __construct()
     {
         parent::__construct();
@@ -47,10 +60,24 @@ class Settings extends AdminController
         foreach (self::TEXT_KEYS as $key) {
             $data[$key] = salesos_get_option($key, '');
         }
+        foreach (self::CONNECTION_KEYS as $key) {
+            $data[$key] = salesos_get_option($key, '');
+        }
 
         $data['escalation_gate'] = salesos_voice_escalation_gate_status();
 
         $this->load->view('salesos/settings', $data);
+    }
+
+    /** AJAX: Settings → Connection → Test Connection button. */
+    public function test_ami()
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+        }
+
+        $this->load->library(SALESOS_MODULE_NAME . '/Ami_service');
+        echo json_encode($this->ami_service->test_connection());
     }
 
     private function _save(): void
@@ -70,7 +97,7 @@ class Settings extends AdminController
             salesos_update_option($key, $val);
         }
 
-        foreach (self::TEXT_KEYS as $key) {
+        foreach (array_merge(self::TEXT_KEYS, self::CONNECTION_KEYS) as $key) {
             $val = $this->input->post($key);
             if ($val !== null) {
                 salesos_update_option($key, $val);

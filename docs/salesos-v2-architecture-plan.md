@@ -141,7 +141,11 @@ so this document is self-contained for a fresh implementer.)
 
 ```
 modules/salesos/
-├── core/            AMI service, event parser, single phone-normalization helper, Redis
+├── libraries/       AMI service, event parser, single phone-normalization helper, Redis
+│                    (CI3/HMVC's $this->load->library() only resolves a module's
+│                    libraries/ folder — Modules::find() hardcodes it, confirmed
+│                    while building Ami_service.php — so this is a hard framework
+│                    constraint, not a style choice. Don't relitigate a core/ split.)
 ├── channels/
 │   ├── voice/        WebRTC (browser) + Desktop SIP trigger (MicroSIP)
 │   └── whatsapp/      Thin BizBot wrapper — agency lead messaging only (not order notifications)
