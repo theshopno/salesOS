@@ -1,0 +1,9 @@
+{
+    "system_name": "salesos",
+    "headers_name": "SalesOS",
+    "description": "Voice & Agency Platform for Perfex CRM — Asterisk PBX telephony, AI call intelligence, and agency workflows. v2 rebuild per docs/salesos-v2-architecture-plan.md.",
+    "version": "2.0.0",
+    "requires_at_least": "2.3.4",
+    "author": "SalesOS",
+    "website": ""
+}
