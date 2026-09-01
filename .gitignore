@@ -7,6 +7,10 @@ vendor/
 # SalesOS daemon — contains production DB credentials and secrets
 modules/salesos/daemons/config.php
 
+# provision_pbx.sh output — contains freshly generated AMI/CDR secrets
+modules/salesos/deploy/pbx_provision_*.env
+pbx_provision_*.env
+
 # OS / editor
 .DS_Store
 *.swp
