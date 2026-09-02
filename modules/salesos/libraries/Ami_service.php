@@ -190,6 +190,86 @@ class Ami_service
         return $channels;
     }
 
+    // ── Raw CLI passthrough (e.g. "file convert" for recording playback) ──────
+
+    /** @return array{success: bool, output: string, error: ?string} */
+    public function run_command(string $command): array
+    {
+        if (!$this->connect()) {
+            return ['success' => false, 'output' => '', 'error' => $this->last_error];
+        }
+
+        $this->send_action(['Action' => 'Command', 'Command' => $command, 'ActionID' => uniqid('cmd-')]);
+        $output = $this->read_command_response();
+        $this->disconnect();
+
+        return ['success' => true, 'output' => $output, 'error' => null];
+    }
+
+    /**
+     * AMI's "Command" action reply isn't the usual flat Key: Value block, and
+     * its shape varies by Asterisk version — two formats seen in the wild:
+     *   - Older ("Response: Follows"): raw CLI text lines, terminated by a
+     *     literal "--END COMMAND--" line, then the closing blank line.
+     *   - Newer (18.26.4 confirmed, "Response: Success" + "Message: Command
+     *     output follows"): each CLI text line arrives as its own
+     *     "Output: <line>" field, terminated by the closing blank line.
+     * Handles both so this works against whichever PBX (kutumbari, ecare,
+     * or a future one) is configured.
+     */
+    private function read_command_response(): string
+    {
+        $deadline  = microtime(true) + $this->timeout;
+        $lines     = [];
+        $following = false; // "Response: Follows" format, raw lines incoming
+        $started   = false; // we've reached OUR action's response body (as
+                             // opposed to an unrelated Event: block that may
+                             // arrive first, e.g. RTCP/channel events)
+
+        while (microtime(true) < $deadline) {
+            $line = fgets($this->socket, 4096);
+            if ($line === false) {
+                break;
+            }
+            $line = rtrim($line, "\r\n");
+
+            if (str_starts_with($line, 'Output: ')) {
+                $lines[]  = substr($line, 8);
+                $started  = true;
+                continue;
+            }
+
+            if ($line === 'Response: Follows') {
+                $following = true;
+                $started   = true;
+                continue;
+            }
+
+            if (str_starts_with($line, 'Response:') || str_starts_with($line, 'Privilege:')
+                || str_starts_with($line, 'ActionID:') || str_starts_with($line, 'Message:')) {
+                continue;
+            }
+
+            if ($line === '--END COMMAND--') {
+                break;
+            }
+
+            if ($line === '') {
+                if ($started) {
+                    break;
+                }
+                continue; // blank terminator of an unrelated event block
+            }
+
+            if ($following) {
+                $lines[] = $line;
+            }
+            // else: a field of an unrelated Event: block — ignored
+        }
+
+        return implode("\n", $lines);
+    }
+
     // ── Low-level I/O ─────────────────────────────────────────────────────────
 
     private function send_action(array $fields): void
