@@ -64,19 +64,32 @@ class Cdr_sync_service
             return false; // already imported — sync is idempotent
         }
 
-        $extension = $this->extract_extension($row['channel'] ?? '');
-        $agent     = $extension !== null ? ($agents_by_ext[$extension] ?? null) : null;
+        // Which side of the call is "the agent" depends on direction, and the
+        // agent's extension shows up in a different CDR column each way:
+        //   outbound (agent dials out): channel=PJSIP/<ext>-..., dst=<external number>
+        //   inbound  (trunk dials in):  dstchannel=PJSIP/<ext>-..., dst=an internal
+        //     dialplan label like "trydesk"/"s" (Gosub/Goto target), never the
+        //     extension itself — so `dst` can't be used to detect inbound at all,
+        //     only `dstchannel` can. `src` is reliably the external caller's
+        //     number in both directions (it's never rewritten by internal hops).
+        $src_ext = $this->extract_extension($row['channel'] ?? '');
+        $dst_ext = $this->extract_extension($row['dstchannel'] ?? '');
 
-        $direction = 'unknown';
+        $extension    = null;
+        $agent        = null;
+        $direction    = 'unknown';
         $other_number = null;
-        if ($agent !== null) {
-            if (($row['src'] ?? '') === $extension) {
-                $direction    = 'outbound';
-                $other_number = $row['dst'] ?? '';
-            } elseif (($row['dst'] ?? '') === $extension) {
-                $direction    = 'inbound';
-                $other_number = $row['src'] ?? '';
-            }
+
+        if ($src_ext !== null && isset($agents_by_ext[$src_ext])) {
+            $extension    = $src_ext;
+            $agent        = $agents_by_ext[$src_ext];
+            $direction    = 'outbound';
+            $other_number = $row['dst'] ?? '';
+        } elseif ($dst_ext !== null && isset($agents_by_ext[$dst_ext])) {
+            $extension    = $dst_ext;
+            $agent        = $agents_by_ext[$dst_ext];
+            $direction    = 'inbound';
+            $other_number = $row['src'] ?? '';
         }
 
         $match = $other_number ? $this->match_entity($other_number) : ['type' => 'none', 'id' => null];
@@ -91,6 +104,10 @@ class Cdr_sync_service
             'duration'      => (int) ($row['duration'] ?? 0),
             'billsec'       => (int) ($row['billsec']  ?? 0),
             'disposition'   => $row['disposition'] ?? '',
+            // Expected filename per the dialplan's MixMonitor(${UNIQUEID}.wav) —
+            // may not exist yet for calls recorded before that was added, or if
+            // recording failed; the recording endpoint fails soft on a 404.
+            'recordingfile' => ($row['uniqueid'] ?? '') !== '' ? $row['uniqueid'] . '.wav' : null,
             'agent_id'      => $agent['staff_id'] ?? null,
             'match_type'    => $match['type'],
             'lead_id'       => $match['type'] === 'lead'    ? $match['id'] : null,
@@ -149,12 +166,21 @@ class Cdr_sync_service
 
     // ── Bookkeeping ──────────────────────────────────────────────────────────
 
+    /**
+     * Watermark is the max `calldate` already imported into salesos_calls —
+     * never the importing app's own wall-clock time. The PBX may be in a
+     * different timezone than the CRM server (kutumbari runs BST, this app
+     * runs +06) and both store naive datetimes with no tz info, so comparing
+     * CDR rows against `date('Y-m-d H:i:s')` from PHP silently drops every
+     * row forever once the two clocks disagree by more than zero. Staying
+     * entirely within the PBX's own timestamp domain avoids that.
+     */
     private function last_synced_start(): string
     {
-        $row = $this->CI->db->order_by('id', 'desc')->limit(1)
-            ->get(db_prefix() . 'salesos_cdr_sync')->row_array();
+        $row = $this->CI->db->select_max('calldate')
+            ->get(db_prefix() . 'salesos_calls')->row_array();
 
-        return $row['last_sync'] ?? '1970-01-01 00:00:00';
+        return $row['calldate'] ?? '1970-01-01 00:00:00';
     }
 
     private function log_sync(int $synced, string $status, ?string $error, ?string $last_uniqueid = null): void

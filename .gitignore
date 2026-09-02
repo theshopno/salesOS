@@ -17,3 +17,6 @@ pbx_provision_*.env
 *.swo
 .idea/
 .vscode/
+
+# Build artifacts — installable module packages, not source
+/dist/

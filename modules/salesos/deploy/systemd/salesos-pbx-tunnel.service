@@ -1,0 +1,35 @@
+[Unit]
+Description=salesos v2 — SSH tunnel to PBX (AMI + CDR DB + recordings HTTP)
+# Generalized version of salesos-cdr-tunnel.service: forwards all three ports
+# a tunnel-only PBX (no Tailscale, no exposed ports — see docs/salesos-v2-architecture-plan.md
+# §3a/§8) needs, not just CDR. Adjust the three LOCAL_*_PORT values and the
+# -L lines below if a given PBX doesn't need all three (e.g. AMI reachable
+# over Tailscale instead, as with ecare — see that box's own simpler
+# salesos-cdr-tunnel.service instead of this one).
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=CHANGE_ME
+Environment=PBX_HOST=CHANGE_ME
+Environment=PBX_SSH_USER=CHANGE_ME
+Environment=TUNNEL_KEY=CHANGE_ME
+Environment=LOCAL_AMI_PORT=15038
+Environment=LOCAL_CDR_PORT=23306
+Environment=LOCAL_HTTP_PORT=18088
+ExecStart=/usr/bin/ssh -N \
+    -o StrictHostKeyChecking=accept-new \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -i ${TUNNEL_KEY} \
+    -L 127.0.0.1:${LOCAL_AMI_PORT}:127.0.0.1:5038 \
+    -L 127.0.0.1:${LOCAL_CDR_PORT}:127.0.0.1:3306 \
+    -L 127.0.0.1:${LOCAL_HTTP_PORT}:127.0.0.1:8088 \
+    ${PBX_SSH_USER}@${PBX_HOST}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

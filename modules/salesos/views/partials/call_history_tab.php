@@ -28,7 +28,7 @@ $calls = !empty($entity->id) ? $CI->salesos_model->get_calls_for_entity($entity_
     <table class="table table-condensed table-hover">
         <thead>
             <tr>
-                <th>Date</th><th>Dir</th><th>Agent</th><th>Duration</th><th>Status</th><th>Disposition</th>
+                <th>Date</th><th>Dir</th><th>Agent</th><th>Duration</th><th>Status</th><th>Disposition</th><th>Recording</th>
             </tr>
         </thead>
         <tbody>
@@ -51,10 +51,20 @@ $calls = !empty($entity->id) ? $CI->salesos_model->get_calls_for_entity($entity_
                 <a href="#" class="salesos-edit-wrapup" data-call-id="<?= (int) $c['id'] ?>" title="Edit disposition/notes"><i class="fa fa-pencil"></i></a>
                 <?php endif; ?>
             </td>
+            <td>
+                <?php if (!empty($c['recordingfile'])): ?>
+                <a href="#" class="salesos-play-recording" data-call-id="<?= (int) $c['id'] ?>" title="Play recording">
+                    <i class="fa-solid fa-circle-play"></i>
+                </a>
+                <?php else: ?>
+                <small class="text-muted">—</small>
+                <?php endif; ?>
+            </td>
         </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    <audio id="salesos-recording-player" style="display:none" controls></audio>
     <?php endif; ?>
 </div>
 </div>
@@ -107,6 +117,17 @@ $calls = !empty($entity->id) ? $CI->salesos_model->get_calls_for_entity($entity_
                 alert('Failed to save.');
             }
         });
+    });
+
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('.salesos-play-recording');
+        if (!link) return;
+        e.preventDefault();
+        var callId = link.getAttribute('data-call-id');
+        var player = document.getElementById('salesos-recording-player');
+        player.style.display = '';
+        player.src = '<?= admin_url('salesos/api/recording') ?>/' + encodeURIComponent(callId);
+        player.play().catch(function () {});
     });
 }());
 </script>

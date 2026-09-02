@@ -20,6 +20,8 @@ class Settings extends AdminController
     private const TEXT_KEYS = [
         'salesos_ai_intelligence_mode',
         'salesos_ai_model',
+        'salesos_effective_call_seconds',
+        'salesos_recording_retention_days',
     ];
 
     /** Connection settings (§8a) — where salesos points, not tied to any one box. */
@@ -33,6 +35,8 @@ class Settings extends AdminController
         'salesos_cdr_db_name',
         'salesos_cdr_db_user',
         'salesos_cdr_db_password',
+        'salesos_recordings_url',
+        'salesos_recordings_monitor_dir',
     ];
 
     public function __construct()
@@ -52,7 +56,7 @@ class Settings extends AdminController
             redirect(admin_url('salesos/settings'));
         }
 
-        $data['title'] = _l('salesos_settings_title') ?: 'SalesOS Settings';
+        $data['title'] = _l('salesos_settings_title');
 
         foreach (self::TOGGLE_KEYS as $key) {
             $data[$key] = salesos_get_option($key, '0');
@@ -115,6 +119,6 @@ class Settings extends AdminController
             }
         }
 
-        set_alert('success', _l('settings_updated') ?: 'Settings updated.');
+        set_alert('success', _l('salesos_settings_updated'));
     }
 }

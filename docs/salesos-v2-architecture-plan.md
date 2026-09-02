@@ -119,8 +119,33 @@ so this document is self-contained for a fresh implementer.)
 | 3 | `salesos`'s browser softphone signals via SIP.js over `wss://.../asterisk/ws` (PJSIP's own websocket transport) — it does **not** use ARI. Only `http.conf enabled=yes` is required on the Asterisk box for this to work, not `ari.conf`. | `modules/salesos/assets/js/salesos_webrtc.js:4`; `modules/salesos/controllers/Api.php:670` |
 | 4 | Click-to-call (`Api.php::originate()`) opens its own short-lived AMI connection per HTTP request — it does not require the persistent `ami_consumer.php` daemon to be running. `Phone_cache` degrades to a plain DB lookup if Redis is unavailable (`Redis_service::connect()` fails soft, doesn't throw). Both are compatible with the CRM web app running on shared/cPanel hosting, as long as the three daemons (`salesos-ami`, `salesos-ws`, `salesos-archiver`) run on a machine that supports persistent processes (root + systemd). | `modules/salesos/controllers/Api.php:50-51`; `modules/salesos/libraries/Redis_service.php:29-48` |
 | 5 | The CRM core DB driver defaults to `mysqli` (`APP_DB_DRIVER` in `application/config/database.php:93`) — Perfex core is MySQL-only. Any new CDR backend should stay MySQL-family (MariaDB) for operational simplicity, not Postgres. | `application/config/database.php:89-93` |
-| 6 | `ecare` (100.85.86.93, Tailscale-only IP, Debian 13, Asterisk v23.4.1/PJSIP) currently has AMI disabled, HTTP server disabled, CDR going to flat CSV only, no MySQL server installed (Postgres is running locally for an unknown other purpose), and no CRM code deployed on it at all. | live SSH audit, this session |
+| 6 | `ecare` (100.85.86.93, Tailscale-only IP, Debian 13, Asterisk v23.4.1/PJSIP) currently has AMI disabled, HTTP server disabled, CDR going to flat CSV only, no MySQL server installed (Postgres is running locally for an unknown other purpose), and no CRM code deployed on it at all. **No longer the default PBX target (see §3a) — kept provisioned and switchable-back-to, not decommissioned.** | live SSH audit, 2026-09-02 |
+| 6a | `kutumbari` (`munzugroup.hosttier.com`, 103.187.23.39, AlmaLinux 9.8, RPM/`dnf`, firewalld not `ufw`) is the **current default PBX target** (switched 2026-09-02 — see §3a). Unlike `ecare` it is a **live production box already serving real calls** — 11 real staff extensions on a live trunk to an external "eCare" telephony provider — not a blank box, and it has **no Tailscale**, so remote access is SSH-tunnel-only, never Tailscale or an exposed port. | live SSH audit + provisioning, 2026-09-02 |
 | 7 | This codebase's real module-dependency idiom is a runtime guard — `$CI->app_modules->is_active('name')` checked in the dependent module's own bootstrap — not zero-coupling. `module.json` is never read by the app. | `docs/ecomcore-architecture-plan.md` fact #4, independently verified there |
+
+---
+
+## 3a. PBX target — kutumbari (default) vs. ecare (fallback)
+
+Per §8a's own principle ("CRM-side... must be settings-driven, not hardcoded"), *which*
+PBX salesos v2 talks to is a `salesos_settings` value, not a code fact — switching
+targets is a settings change plus pointing the SSH tunnel/Tailscale connection at the
+other box, not a rebuild. Both boxes stay provisioned so this switch is real, not
+theoretical:
+
+| | **kutumbari** (default, current) | **ecare** (fallback, available) |
+|---|---|---|
+| Role | Live production PBX — real business, real staff, real trunk | Originally-intended dev/staging target; still provisioned, currently idle |
+| Reachability | Public IP, no Tailscale — **SSH tunnel only** (dedicated restricted key, port-forward-only) | Tailscale-only IP — AMI reachable over the tailnet directly; only CDR-DB needed a tunnel |
+| OS / package manager | AlmaLinux 9.8 / `dnf`, firewalld | Debian 13 / `apt`, `ufw` |
+| Asterisk | 18.26.4 (RPM/EPEL split packaging — ODBC support is a **separate `asterisk-odbc` package**, not present by default) | 23.4.1 (Debian packaging, ODBC support present via `odbc-mariadb`) |
+| `provision_pbx.sh` compatible? | **No** — script is Debian/`apt`/`ufw`-specific; kutumbari was provisioned by hand, see §8 | Yes — this is what the script was originally built and proven against |
+| Shared-tenancy caution | Hosts an unrelated site `kutumbariresort.com` + its own DB `kutumbari` — never touch | Hosts unrelated DBs `hazirago_central`/`inout_central` + a Node app `sarothi` — never touch |
+
+**To switch back to ecare:** update `salesos_settings` (`salesos_ami_host/_port/_username/
+_secret`, `salesos_cdr_db_host/_port/_name/_user/_password`) to ecare's values (recorded
+in project memory), and point the SSH tunnel/Tailscale route at ecare instead of
+kutumbari's tunnel. Nothing in the module's code hardcodes either box.
 
 ---
 
@@ -236,6 +261,35 @@ average AI score this week and which of their calls scored lowest."
 
 ## 8. Infra / security foundation
 
+**Done against `kutumbari` (current default target, 2026-09-02) — a different checklist
+than the one originally written for `ecare`, because kutumbari is RPM/AlmaLinux, has no
+Tailscale, and is already a live production box, not a blank one:**
+- MariaDB root access had to be reset first (password unknown) — via a brief
+  `mysqld_safe --skip-grant-tables --skip-networking` window; confirmed zero live-call
+  or other-tenant disruption before and after (see project memory for the exact
+  gotcha: the temp socket dir must be `mysql:mysql`-owned, not root-owned, or `mysqld`
+  refuses to bind it)
+- AMI enabled: `crm-api` user, `permit = 127.0.0.1` only (no CIDR needed — see below on
+  why), no other manager users touched
+- CDR: **`asterisk-odbc` had to be installed as its own RPM package** — this Asterisk
+  build ships with zero ODBC-family modules until that package is added (different
+  from `ecare`, where `odbc-mariadb` alone was enough because Asterisk's own build
+  already had `res_odbc`/`cdr_adaptive_odbc` compiled in). After installing it,
+  `module load`/`module reload` failed with "unknown dependencies" — needed a
+  `core restart gracefully` (confirmed 0 active calls first) before the modules would
+  actually run — a live process doesn't pick up a newly-installed module's dependency
+  graph from load/reload alone
+- **No public-domain+TLS step done or needed** — unlike ecare's plan (below), kutumbari
+  is reached over its already-public IP via an SSH tunnel, not a browser-facing
+  WebRTC/WS endpoint yet; that work is still open whenever Phase 1's browser channel
+  needs it here
+- Firewalld left untouched — its default zone already blocks 3306/5038 from outside,
+  so no firewall rule was needed for AMI/CDR-DB (SSH tunnel is the only access path)
+- Full detail, exact credentials, and the SSH-tunnel setup: project memory
+  (`project_salesos_infra.md`, "kutumbari" section)
+
+**Original checklist, still valid for `ecare` if switched back to (§3a) — not repeated
+for kutumbari because it doesn't apply there (no Caddy, no Tailscale, different distro):**
 - `ecare`: enable AMI (dedicated least-privilege `crm-api` user, not a superuser
   permission class), enable `http.conf` (ARI not required — fact #3), install MariaDB
   locally + `cdr_adaptive_odbc` writing into it (fact #5 — stay in the MySQL family),
@@ -299,6 +353,16 @@ two different fixes:
 - Output: the script prints (or writes to a local file, never git) the resulting AMI
   host/port/user/secret and CDR DB host/user/password/database — these are exactly the
   values the next step consumes.
+- **Confirmed NOT portable across distros yet (2026-09-02) — this is now a known gap,
+  not a hypothetical one.** Trying to use this script against `kutumbari` (AlmaLinux/
+  `dnf`, firewalld) failed on two hardcoded Debian assumptions: package install uses
+  `apt-get`/`dpkg -l` (kutumbari needs `dnf`/`rpm -q`, and a differently-named ODBC
+  package — see §3a), and the firewall step only knows `ufw` (kutumbari uses
+  firewalld, or — as turned out to be the better answer there — no firewall rule at
+  all, since an SSH-tunnel-only access model needs none). Phase 1's own acceptance
+  criterion below ("proven against a second PBX") is technically now attempted, not
+  passed — the second PBX needed manual work, not the script. Adding a package-manager
+  and firewall-backend detection branch to the script is follow-up work, not done yet.
 
 **1a. CDR database reachability — SSH tunnel, not an exposed DB port.** Discovered
 while building Phase 1's CDR sync: `provision_pbx.sh` deliberately leaves MariaDB
@@ -350,7 +414,8 @@ the next one starts, mirroring `ecomcore-architecture-plan.md` §15/§17's disci
   rename the old tables (e.g. `salesos_calls` → `_archived_salesos_calls`), rather than
   silently losing operational history
 - Credential audit (check live production dependency) → rotate → `.env` → `.gitignore`
-- ecare infra work (§8)
+- PBX target infra work (§8) — done against `kutumbari`, the current default (§3a);
+  `ecare` stays provisioned as the switchable-back-to fallback
 - Feature-flag table + Settings "Features" tab (empty shell, wired to nothing yet)
 
 ### Phase 1 — MVP core telephony

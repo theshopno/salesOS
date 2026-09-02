@@ -30,6 +30,15 @@ $defaults = [
     'salesos_channel_desktop'            => '1',
     'salesos_ai_intelligence_mode'       => 'manual', // off|manual|auto_flagged|full_auto
     'salesos_ai_model'                   => '',
+    // A call counts as "effective" (a real conversation, not just a pickup)
+    // when it was answered and lasted at least this many seconds — used by
+    // the Dashboard and Calls report. Tunable per team, not hardcoded.
+    'salesos_effective_call_seconds'     => '120',
+    // How long a cached recording MP3 is kept locally before cleanup deletes
+    // it. Only trims our local cache — never touches the recording on the
+    // PBX itself, and get_mp3_path() will happily re-fetch/re-convert on
+    // next request if someone plays an old call after its cache expired.
+    'salesos_recording_retention_days'   => '90',
     'salesos_agency_pack'                => '0',
     'salesos_agency_bizbot_messaging'    => '0',
     'salesos_agency_bizbot_provisioning' => '0',
@@ -48,6 +57,14 @@ $defaults = [
     'salesos_cdr_db_name'      => 'asteriskcdrdb',
     'salesos_cdr_db_user'      => '',
     'salesos_cdr_db_password'  => '',
+    // Base URL for fetching call recordings from the PBX's Asterisk HTTP
+    // static server (enablestatic=yes), e.g. http://127.0.0.1:18088/static/recordings/
+    // — usually the local end of the same SSH tunnel used for AMI/CDR.
+    'salesos_recordings_url'   => '',
+    // Absolute path on the PBX itself where MixMonitor writes recordings —
+    // used to build the "file convert" command run over AMI when a call was
+    // recorded in GSM and needs an on-demand WAV copy for browser playback.
+    'salesos_recordings_monitor_dir' => '/var/spool/asterisk/monitor',
 ];
 
 foreach ($defaults as $key => $value) {
@@ -118,6 +135,24 @@ if (!$CI->db->table_exists(db_prefix() . 'salesos_phone_index')) {
         PRIMARY KEY (`id`),
         UNIQUE KEY `phone_entity` (`phone`, `entity_type`, `entity_id`),
         KEY `phone` (`phone`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;');
+}
+
+// ── Active calls (real-time popup polling — §9 Phase 1 screen-pop) ───────────
+if (!$CI->db->table_exists(db_prefix() . 'salesos_active_calls')) {
+    $CI->db->query('CREATE TABLE `' . db_prefix() . 'salesos_active_calls` (
+        `id`          INT(11)     NOT NULL AUTO_INCREMENT,
+        `uniqueid`    VARCHAR(64) NOT NULL,
+        `src`         VARCHAR(80) NOT NULL DEFAULT "",
+        `dst`         VARCHAR(80) NOT NULL DEFAULT "",
+        `extension`   VARCHAR(20) DEFAULT NULL,
+        `agent_id`    INT(11)     DEFAULT NULL,
+        `state`       ENUM("ringing","answered") NOT NULL DEFAULT "ringing",
+        `started_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `popup_shown` TINYINT(1)  NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uniqueid` (`uniqueid`),
+        KEY `agent_id` (`agent_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;');
 }
 

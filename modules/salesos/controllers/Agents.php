@@ -21,7 +21,7 @@ class Agents extends AdminController
             redirect(admin_url('salesos/agents'));
         }
 
-        $data['title']    = 'SalesOS Agents';
+        $data['title']    = _l('salesos_agents_title');
         $data['agents']   = $this->agents_model->get_all();
         $data['staff']    = $this->_unmapped_staff();
 
@@ -31,7 +31,7 @@ class Agents extends AdminController
     public function delete($id)
     {
         $this->agents_model->delete((int) $id);
-        set_alert('success', 'Agent mapping removed.');
+        set_alert('success', _l('salesos_agent_removed'));
         redirect(admin_url('salesos/agents'));
     }
 
@@ -41,17 +41,17 @@ class Agents extends AdminController
         $extension = trim((string) $this->input->post('extension'));
 
         if ($staff_id <= 0 || $extension === '') {
-            set_alert('warning', 'Staff and extension are both required.');
+            set_alert('warning', _l('salesos_agents_required'));
             return;
         }
 
         if (!ctype_digit($extension)) {
-            set_alert('warning', 'Extension must be numeric.');
+            set_alert('warning', _l('salesos_agents_extension_numeric'));
             return;
         }
 
         $this->agents_model->save($staff_id, $extension);
-        set_alert('success', 'Agent mapping saved.');
+        set_alert('success', _l('salesos_agent_saved'));
     }
 
     /** Staff members who don't already have an extension mapped. */
