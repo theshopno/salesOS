@@ -1,0 +1,9 @@
+{
+    "system_name": "wooconnector",
+    "headers_name": "WooConnector",
+    "description": "Pulls WooCommerce orders into the CRM as Leads (with product/order custom fields) so telesales can confirm them before converting to Customers.",
+    "version": "1.2.0",
+    "requires_at_least": "2.3.4",
+    "author": "",
+    "website": ""
+}
