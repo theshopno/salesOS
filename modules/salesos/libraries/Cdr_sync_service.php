@@ -43,12 +43,33 @@ class Cdr_sync_service
         $agents_by_ext = $this->agents_by_extension();
         $synced = 0;
         $last_uniqueid = null;
+        $failed_uniqueid = null;
+        $failed_error = null;
 
         foreach ($rows as $row) {
-            if ($this->import_row($row, $agents_by_ext)) {
+            $result = $this->import_row($row, $agents_by_ext);
+            if ($result === 'inserted') {
                 $synced++;
+            } elseif ($result === 'failed') {
+                // Stop here rather than continuing past a row we couldn't
+                // insert: `last_synced_start()` derives its watermark from
+                // MAX(calldate) already IN salesos_calls, so if we let later
+                // rows in this batch import successfully, their calldate
+                // becomes the new floor and this row's `start > floor` check
+                // would never be true again on a future run — silently
+                // losing it forever instead of retrying it.
+                $failed_uniqueid = $row['uniqueid'];
+                $failed_error    = $this->CI->db->error()['message'] ?? 'unknown error';
+                break;
             }
             $last_uniqueid = $row['uniqueid'];
+        }
+
+        if ($failed_uniqueid !== null) {
+            $error = "Insert failed for uniqueid {$failed_uniqueid}: {$failed_error}";
+            $this->log_sync($synced, 'error', $error, $last_uniqueid);
+
+            return ['ok' => false, 'synced' => $synced, 'error' => $error];
         }
 
         $this->log_sync($synced, 'ok', null, $last_uniqueid);
@@ -58,10 +79,11 @@ class Cdr_sync_service
 
     // ── Row import ───────────────────────────────────────────────────────────
 
-    private function import_row(array $row, array $agents_by_ext): bool
+    /** @return string 'inserted'|'skipped'|'failed' */
+    private function import_row(array $row, array $agents_by_ext): string
     {
         if ($this->CI->db->where('uniqueid', $row['uniqueid'])->count_all_results(db_prefix() . 'salesos_calls') > 0) {
-            return false; // already imported — sync is idempotent
+            return 'skipped'; // already imported — sync is idempotent
         }
 
         // Which side of the call is "the agent" depends on direction, and the
@@ -115,7 +137,7 @@ class Cdr_sync_service
             'client_id'     => $match['type'] === 'client'  ? $match['id'] : null,
         ];
 
-        return (bool) $this->CI->db->insert(db_prefix() . 'salesos_calls', $data);
+        return $this->CI->db->insert(db_prefix() . 'salesos_calls', $data) ? 'inserted' : 'failed';
     }
 
     private function extract_extension(string $channel): ?string
