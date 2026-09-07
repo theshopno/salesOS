@@ -24,6 +24,15 @@ class Recording_service
 {
     private const CACHE_DIR = 'uploads/salesos_recordings/';
 
+    // A standard 16-bit PCM WAV header is exactly 44 bytes. Asterisk's `file
+    // convert` happily produces one of these — valid, but zero audio samples —
+    // when the source .gsm was itself 0 bytes (call never bridged, see
+    // Cdr_sync_service). Serving/caching that plays as a silent 0:00 track
+    // instead of failing soft, so anything at or below header size is treated
+    // as "no recording" rather than a real one (confirmed live on Munzu
+    // 2026-09-07: 19 such stub .wav files already sitting there).
+    private const MIN_REAL_WAV_BYTES = 44;
+
     /** @return string|null absolute path to a local WAV, or null if unavailable */
     public function get_recording_path(string $uniqueid): ?string
     {
@@ -36,7 +45,14 @@ class Recording_service
 
         $wav_path = $cache_dir . $uniqueid . '.wav';
         if (is_file($wav_path)) {
-            return $wav_path;
+            if (filesize($wav_path) > self::MIN_REAL_WAV_BYTES) {
+                return $wav_path;
+            }
+            // A previous request cached a header-only stub — don't keep serving
+            // it as if it were a real recording.
+            @unlink($wav_path);
+
+            return null;
         }
 
         $base_url = rtrim((string) salesos_get_option('salesos_recordings_url', ''), '/');
@@ -56,7 +72,10 @@ class Recording_service
             $wav_data = $this->fetch($base_url . '/' . rawurlencode($uniqueid) . '.wav');
         }
 
-        if ($wav_data === null) {
+        if ($wav_data === null || strlen($wav_data) <= self::MIN_REAL_WAV_BYTES) {
+            // Either genuinely unavailable, or the PBX just produced a
+            // header-only stub from a 0-byte source .gsm — either way there's
+            // no audio to serve. Don't cache the stub.
             return null;
         }
 

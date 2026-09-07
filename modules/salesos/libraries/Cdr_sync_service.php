@@ -15,6 +15,22 @@ class Cdr_sync_service
 {
     private const BATCH_SIZE = 200;
 
+    // Asterisk writes a CDR row only when a call ENDS, not when it starts —
+    // so rows become visible to this query in call-END order, not the
+    // `start`-time order the query sorts/filters by. A long call that
+    // started earlier can still surface after a short call that started
+    // later but ended first. If the watermark only ever advances to the
+    // short call's start time, the long call's earlier `start` then falls
+    // behind `start > $last_start` and is excluded forever — silently and
+    // permanently dropping a real, recorded call (confirmed live
+    // 2026-09-07: an 11-minute answered call was lost exactly this way
+    // while a 10-second call that started 79s later, and so ended first,
+    // pushed the watermark past it). Re-querying from a fixed distance
+    // behind the watermark — well past any plausible call duration — and
+    // relying on import_row()'s existing per-uniqueid dedup to skip
+    // already-synced rows closes the gap without a schema change.
+    private const WATERMARK_LOOKBACK_SECONDS = 3600;
+
     private $CI;
 
     public function __construct()
@@ -32,9 +48,10 @@ class Cdr_sync_service
         }
 
         $last_start = $this->last_synced_start();
+        $fetch_from = date('Y-m-d H:i:s', strtotime($last_start) - self::WATERMARK_LOOKBACK_SECONDS);
 
         $rows = $cdr_db->select('*')
-            ->where('start >', $last_start)
+            ->where('start >', $fetch_from)
             ->order_by('start', 'asc')
             ->limit(self::BATCH_SIZE)
             ->get('cdr')
@@ -75,6 +92,65 @@ class Cdr_sync_service
         $this->log_sync($synced, 'ok', null, $last_uniqueid);
 
         return ['ok' => true, 'synced' => $synced, 'error' => null];
+    }
+
+    /**
+     * One-time historical recovery for calls the watermark bug (see
+     * WATERMARK_LOOKBACK_SECONDS above) already dropped before that fix
+     * existed — a plain date-range scan, independent of the watermark, that
+     * imports whatever in [$from, $until] isn't already in salesos_calls.
+     * Unlike sync(), never stops early on a single failed row (a failure
+     * here can't corrupt any watermark — there isn't one — so skipping past
+     * it and recovering everything else it can is strictly better than
+     * halting a recovery pass over one bad row). Safe to re-run or overlap
+     * ranges: import_row()'s per-uniqueid dedup makes this idempotent.
+     *
+     * @return array{ok: bool, synced: int, failed: int, batches: int, error: ?string}
+     */
+    public function backfill_range(string $from, string $until, int $max_batches = 50): array
+    {
+        $cdr_db = $this->connect_cdr_db();
+        if ($cdr_db === null) {
+            return ['ok' => false, 'synced' => 0, 'failed' => 0, 'batches' => 0, 'error' => 'CDR DB connection failed'];
+        }
+
+        $agents_by_ext = $this->agents_by_extension();
+        $cursor = $from;
+        $synced = 0;
+        $failed = 0;
+        $batches = 0;
+
+        for (; $batches < $max_batches; $batches++) {
+            $rows = $cdr_db->select('*')
+                ->where('start >', $cursor)
+                ->where('start <=', $until)
+                ->order_by('start', 'asc')
+                ->limit(self::BATCH_SIZE)
+                ->get('cdr')
+                ->result_array();
+
+            if (empty($rows)) {
+                break;
+            }
+
+            foreach ($rows as $row) {
+                $result = $this->import_row($row, $agents_by_ext);
+                if ($result === 'inserted') {
+                    $synced++;
+                } elseif ($result === 'failed') {
+                    $failed++;
+                }
+                $cursor = $row['start'];
+            }
+
+            if (count($rows) < self::BATCH_SIZE) {
+                break;
+            }
+        }
+
+        $this->log_sync($synced, 'ok', "Backfill {$from} .. {$until}: {$synced} recovered, {$failed} failed, {$batches} batch(es)");
+
+        return ['ok' => true, 'synced' => $synced, 'failed' => $failed, 'batches' => $batches, 'error' => null];
     }
 
     // ── Row import ───────────────────────────────────────────────────────────
@@ -126,10 +202,17 @@ class Cdr_sync_service
             'duration'      => (int) ($row['duration'] ?? 0),
             'billsec'       => (int) ($row['billsec']  ?? 0),
             'disposition'   => $row['disposition'] ?? '',
-            // Expected filename per the dialplan's MixMonitor(${UNIQUEID}.wav) —
-            // may not exist yet for calls recorded before that was added, or if
-            // recording failed; the recording endpoint fails soft on a 404.
-            'recordingfile' => ($row['uniqueid'] ?? '') !== '' ? $row['uniqueid'] . '.wav' : null,
+            // MixMonitor is started with the ,b flag (record-while-bridged only —
+            // see extensions_custom.conf) and never explicitly stopped/deleted
+            // outside the voicemail-fallback branch, so a call that never bridged
+            // (no answer, busy, etc.) always leaves a real but 0-byte .gsm behind.
+            // billsec > 0 is the same signal Asterisk itself uses for "was
+            // bridged" — if it's 0, no audio was ever captured, so don't claim a
+            // recording exists (confirmed against live Munzu data 2026-09-07:
+            // 281/497 monitor files were 0-byte, all billsec=0 calls).
+            'recordingfile' => ((int) ($row['billsec'] ?? 0) > 0 && ($row['uniqueid'] ?? '') !== '')
+                ? $row['uniqueid'] . '.wav'
+                : null,
             'agent_id'      => $agent['staff_id'] ?? null,
             'match_type'    => $match['type'],
             'lead_id'       => $match['type'] === 'lead'    ? $match['id'] : null,

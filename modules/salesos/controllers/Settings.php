@@ -95,6 +95,26 @@ class Settings extends AdminController
         echo json_encode($this->cdr_sync_service->sync());
     }
 
+    /**
+     * One-time recovery tool, not linked from any UI — see
+     * Cdr_sync_service::backfill_range()'s docblock. Visit while logged in
+     * as staff with salesos settings permission:
+     *   .../salesos/settings/backfill_cdr?from=2026-09-02 00:00:00&until=2026-09-07 23:59:59
+     * Requires explicit from/until (no defaults) so it's never triggered by
+     * accident. Remove once the 2026-09-07 watermark-bug backfill is done.
+     */
+    public function backfill_cdr()
+    {
+        $from  = $this->input->get('from');
+        $until = $this->input->get('until');
+        if (!$from || !$until) {
+            show_404();
+        }
+
+        $this->load->library(SALESOS_MODULE_NAME . '/Cdr_sync_service');
+        echo json_encode($this->cdr_sync_service->backfill_range($from, $until));
+    }
+
     private function _save(): void
     {
         $gate = salesos_voice_escalation_gate_status();
