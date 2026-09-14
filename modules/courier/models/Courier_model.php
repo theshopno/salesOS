@@ -424,12 +424,9 @@ class Courier_model extends App_Model
             $this->db->insert($db_prefix . 'courier_consignments', $consignment_data);
             $db_id = $this->db->insert_id();
 
-            // Update order status
-            $this->db->where('id', $salesos_order_id);
-            $this->db->update($db_prefix . 'salesos_orders', [
-                'status' => 'shipped',
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
+            // Through the kernel, so the status change lands in the order's
+            // event log like every other transition.
+            $this->salesos_model->set_order_status((int) $salesos_order_id, 'shipped');
 
             return $db_id;
         } else {
@@ -504,11 +501,9 @@ class Courier_model extends App_Model
             $this->db->insert($db_prefix . 'courier_consignments', $consignment_data);
             $db_id = $this->db->insert_id();
 
-            $this->db->where('id', $salesos_order_id);
-            $this->db->update($db_prefix . 'salesos_orders', [
-                'status' => 'shipped',
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
+            // Through the kernel, so the status change lands in the order's
+            // event log like every other transition.
+            $this->salesos_model->set_order_status((int) $salesos_order_id, 'shipped');
 
             return $db_id;
         } else {
@@ -654,20 +649,23 @@ class Courier_model extends App_Model
             'last_synced_at' => date('Y-m-d H:i:s')
         ]);
 
-        // RESTOCK / MARK DELIVERED OR CANCELLED IN SALESOS
+        // Mirror the consignment's terminal states onto the order through the
+        // kernel, which writes the status, records the event and fires the
+        // matching hook. Writing tblsalesos_orders here directly would skip the
+        // event log, and a returned consignment would be filed as a
+        // cancellation — losing the distinction the kernel draws between the
+        // two, since only `returned` reaches the stock-returned listeners.
+        $order_status = null;
         if ($new_status === 'delivered') {
-            $this->db->where('id', $order_id);
-            $this->db->update($db_prefix . 'salesos_orders', [
-                'status' => 'delivered',
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-        } elseif ($new_status === 'cancelled' || $new_status === 'returned') {
-            $this->db->where('id', $order_id);
-            $this->db->update($db_prefix . 'salesos_orders', [
-                'status' => 'cancelled',
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-            hooks()->do_action('salesos_order_cancelled', $order_id);
+            $order_status = 'delivered';
+        } elseif ($new_status === 'cancelled') {
+            $order_status = 'cancelled';
+        } elseif ($new_status === 'returned') {
+            $order_status = 'returned';
+        }
+
+        if ($order_status !== null) {
+            $this->salesos_model->set_order_status((int) $order_id, $order_status);
         }
 
         hooks()->do_action('courier_consignment_status_changed', [

@@ -291,30 +291,64 @@ class Inventory_model extends App_Model
 
     public function handle_order_cancelled(int $order_id): void
     {
-        // Find prior stock deductions for this order
-        $this->db->where('ref_type', 'salesos_order');
-        $this->db->where('ref_id', $order_id);
-        $this->db->where('movement_type', 'sale_out');
-        $ledger_rows = $this->db->get(db_prefix() . 'inventory_stock_ledger')->result_array();
-
-        foreach ($ledger_rows as $row) {
-            // Reverse quantity
-            $qty = abs((float) $row['qty']);
-            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'salesos_order', $order_id, 'Salesos order cancelled - stock returned');
-        }
+        $this->return_order_stock($order_id, 'Salesos order cancelled - stock returned');
     }
 
     public function handle_stock_returned(int $order_id): void
     {
-        // Return process
-        $this->db->where('ref_type', 'salesos_order');
-        $this->db->where('ref_id', $order_id);
-        $this->db->where('movement_type', 'sale_out');
-        $ledger_rows = $this->db->get(db_prefix() . 'inventory_stock_ledger')->result_array();
+        $this->return_order_stock($order_id, 'Salesos return processed - stock returned');
+    }
 
-        foreach ($ledger_rows as $row) {
+    /**
+     * Put back whatever of an order's stock has not already been put back.
+     *
+     * An order can reach here more than once — a courier consignment that goes
+     * cancelled and then returned fires two separate events for the same goods,
+     * and a cancellation can follow a partial return. Reversing every sale_out
+     * row each time would credit the same units repeatedly, so this nets what
+     * went out against what has already come back per product and warehouse,
+     * and only moves the difference. Running it again with nothing outstanding
+     * is a no-op.
+     */
+    private function return_order_stock(int $order_id, string $note): void
+    {
+        $rows = $this->db->select('product_id, warehouse_id, movement_type, qty')
+            ->where('ref_type', 'salesos_order')
+            ->where('ref_id', $order_id)
+            ->where_in('movement_type', ['sale_out', 'return_in'])
+            ->get(db_prefix() . 'inventory_stock_ledger')
+            ->result_array();
+
+        $outstanding = [];
+        foreach ($rows as $row) {
+            $key = $row['product_id'] . ':' . $row['warehouse_id'];
             $qty = abs((float) $row['qty']);
-            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'salesos_order', $order_id, 'Salesos return processed - stock returned');
+
+            if (!isset($outstanding[$key])) {
+                $outstanding[$key] = [
+                    'product_id'   => (int) $row['product_id'],
+                    'warehouse_id' => (int) $row['warehouse_id'],
+                    'qty'          => 0.00,
+                ];
+            }
+
+            $outstanding[$key]['qty'] += ($row['movement_type'] === 'sale_out') ? $qty : -$qty;
+        }
+
+        foreach ($outstanding as $entry) {
+            if ($entry['qty'] <= 0) {
+                continue;
+            }
+
+            $this->adjust_stock(
+                $entry['product_id'],
+                $entry['warehouse_id'],
+                $entry['qty'],
+                'return_in',
+                'salesos_order',
+                $order_id,
+                $note
+            );
         }
     }
 }
