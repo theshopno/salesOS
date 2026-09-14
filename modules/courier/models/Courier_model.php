@@ -266,7 +266,7 @@ class Courier_model extends App_Model
             $ch = curl_init($base_url . '/aladdin/api/v1/external/login');
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Accept: application/json']);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
@@ -342,22 +342,29 @@ class Courier_model extends App_Model
             throw new Exception("Courier account not found.");
         }
 
+        // Check if already booked — done here, before branching by provider, so a
+        // duplicate booking (double-click, retry after a timeout) is caught for
+        // every provider, not just Pathao. Previously Steadfast returned early
+        // above this check and could book the same order twice.
+        $this->db->where('ecomcore_order_id', $ecomcore_order_id);
+        $existing = $this->db->get($db_prefix . 'courier_consignments')->row();
+        if ($existing) {
+            throw new Exception("Order ID {$ecomcore_order_id} has already been booked (Tracking ID: {$existing->tracking_id}).");
+        }
+
         // If Steadfast, run standard Steadfast logic
         if ($account['provider'] === 'steadfast') {
             return $this->book_order_steadfast($ecomcore_order_id, $courier_account_id, $cod_amount, $notes);
+        }
+
+        if ($account['provider'] !== 'pathao') {
+            throw new Exception("Unsupported courier provider: {$account['provider']}");
         }
 
         // ── Pathao Booking Flow ────────────────────────────────────────────────
         $order = $this->get_order_with_customer($ecomcore_order_id);
         if (!$order) {
             throw new Exception("Order ID {$ecomcore_order_id} not found.");
-        }
-
-        // Check if already booked
-        $this->db->where('ecomcore_order_id', $ecomcore_order_id);
-        $existing = $this->db->get($db_prefix . 'courier_consignments')->row();
-        if ($existing) {
-            throw new Exception("Order ID {$ecomcore_order_id} has already been booked (Tracking ID: {$existing->tracking_id}).");
         }
 
         // Normalise Phone
@@ -753,7 +760,7 @@ class Courier_model extends App_Model
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
         if (strtoupper($method) === 'POST') {
@@ -789,7 +796,7 @@ class Courier_model extends App_Model
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
         if (strtoupper($method) === 'POST') {

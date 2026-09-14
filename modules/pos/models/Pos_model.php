@@ -123,6 +123,8 @@ class Pos_model extends App_Model
 
         $this->db->trans_start();
 
+        try {
+
         // 1. Resolve customer details
         $customer_name  = 'Walk-in Customer';
         $customer_email = '';
@@ -301,6 +303,14 @@ class Pos_model extends App_Model
             'transaction_ref' => $payment_ref,
             'created_at'      => date('Y-m-d H:i:s'),
         ]);
+
+        } catch (Exception $e) {
+            // Without this, an exception thrown anywhere above (e.g. an unknown
+            // product ID) left trans_start()'s transaction dangling — never
+            // committed or rolled back — since nothing here previously caught it.
+            $this->db->trans_rollback();
+            throw $e;
+        }
 
         $this->db->trans_complete();
 

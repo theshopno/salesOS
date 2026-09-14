@@ -11,6 +11,19 @@ class Wooconnector_model extends App_Model
     public function __construct()
     {
         parent::__construct();
+
+        // Indexed phone-suffix generated column, shared with ecomcore's identical
+        // fix — added defensively here too since wooconnector doesn't depend on
+        // ecomcore being installed. See ecomcore/install.php for the full comment.
+        $db_prefix = db_prefix();
+        foreach (['leads', 'contacts'] as $table) {
+            if (!$this->db->field_exists('phone_suffix10', $db_prefix . $table)) {
+                $this->db->query("ALTER TABLE `{$db_prefix}{$table}`
+                    ADD COLUMN `phone_suffix10` VARCHAR(10)
+                        GENERATED ALWAYS AS (RIGHT(REGEXP_REPLACE(phonenumber, '[^0-9]', ''), 10)) STORED,
+                    ADD INDEX `phone_suffix10` (`phone_suffix10`);");
+            }
+        }
     }
 
     // ── Sites ─────────────────────────────────────────────────────────────────
@@ -475,23 +488,22 @@ class Wooconnector_model extends App_Model
         return $digits !== '' ? substr($digits, -10) : '';
     }
 
-    private function phone_suffix_sql($column)
-    {
-        return "RIGHT(REPLACE(REPLACE(REPLACE({$column}, '+', ''), ' ', ''), '-', ''), 10)";
-    }
-
     private function find_client_by_phone($phone_suffix)
     {
-        $sql = 'SELECT userid FROM ' . db_prefix() . 'contacts WHERE ' . $this->phone_suffix_sql('phonenumber') . ' = ? LIMIT 1';
-        $row = $this->db->query($sql, [$phone_suffix])->row();
+        $this->db->select('userid');
+        $this->db->where('phone_suffix10', $phone_suffix);
+        $row = $this->db->get(db_prefix() . 'contacts')->row();
 
         return $row ? (int) $row->userid : null;
     }
 
     private function find_open_lead_by_phone($phone_suffix)
     {
-        $sql = 'SELECT id FROM ' . db_prefix() . 'leads WHERE lost = 0 AND junk = 0 AND ' . $this->phone_suffix_sql('phonenumber') . ' = ? LIMIT 1';
-        $row = $this->db->query($sql, [$phone_suffix])->row();
+        $this->db->select('id');
+        $this->db->where('lost', 0);
+        $this->db->where('junk', 0);
+        $this->db->where('phone_suffix10', $phone_suffix);
+        $row = $this->db->get(db_prefix() . 'leads')->row();
 
         return $row ? (int) $row->id : null;
     }

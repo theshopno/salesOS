@@ -21,7 +21,7 @@ function fraudcheck_activation_hook(): void
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 hooks()->add_action('app_init', 'fraudcheck_load_resources');
-hooks()->add_action('lead_status_changed', 'fraudcheck_handle_status_change');
+hooks()->add_action('ecomcore_order_created', 'fraudcheck_handle_order_created');
 
 function fraudcheck_load_resources(): void
 {
@@ -33,32 +33,35 @@ function fraudcheck_load_resources(): void
 }
 
 /**
- * Hook listener: Check customer risk automatically when their WooCommerce lead transitions to "Called"
+ * Hook listener: automatically fraud-check a customer's phone as soon as their
+ * order is created — fires for every channel (POS, WooCommerce, future
+ * Shopify/Laravel connectors) via the kernel's own order-creation event,
+ * rather than watching for a WooCommerce-specific lead-status transition that
+ * no channel actually creates (the previous design waited on a
+ * `wcsync_called_status_id` option wcsync never sets, so this never ran).
  */
-function fraudcheck_handle_status_change($data): void
+function fraudcheck_handle_order_created($order_id): void
 {
     $CI = &get_instance();
     if (!$CI->app_modules->is_active(FRAUDCHECK_MODULE_NAME)) {
         return;
     }
 
-    $lead_id = (int) $data['lead_id'];
-    $new_status_id = (int) $data['new_status_id'];
+    $db_prefix = db_prefix();
+    $sql = "
+        SELECT COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone
+        FROM {$db_prefix}ecomcore_orders o
+        LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+        LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
+        LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
+        WHERE o.id = ?
+    ";
+    $row = $CI->db->query($sql, [(int) $order_id])->row();
 
-    // Get the status ID configured for WooCommerce "Called" orders
-    $called_status_id = (int) get_option('wcsync_called_status_id');
-    if ($called_status_id === 0 || $new_status_id !== $called_status_id) {
-        return;
-    }
-
-    // Retrieve lead phone number
-    $CI->db->select('phonenumber');
-    $CI->db->where('id', $lead_id);
-    $lead = $CI->db->get(db_prefix() . 'leads')->row();
-    
-    if ($lead && !empty($lead->phonenumber)) {
+    if ($row && !empty($row->customer_phone)) {
         $CI->load->model('fraudcheck/fraudcheck_model');
-        // Pull API and cache the results automatically
-        $CI->fraudcheck_model->check($lead->phonenumber);
+        // Pull API and cache the results automatically; the model's own 48h
+        // cache keeps repeat orders from the same customer cheap.
+        $CI->fraudcheck_model->check($row->customer_phone);
     }
 }

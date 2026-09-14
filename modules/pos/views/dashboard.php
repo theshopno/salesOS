@@ -303,10 +303,12 @@
                 <!-- Product Card list grid -->
                 <div class="pos-products-grid" id="pos-products-grid">
                     <?php foreach ($products as $prod): ?>
-                        <?php 
+                        <?php
                             $stock = (float) $prod['stock_on_hand'];
                             $is_out = $stock <= 0;
-                            $rate = isset($prod['item_id']) ? $this->db->get_where(db_prefix() . 'items', ['id' => $prod['item_id']])->row('rate') ?? 0.00 : 0.00;
+                            // Rate now comes from Inventory_model::get_products()'s own JOIN — this
+                            // used to run one extra query per product card (up to hundreds on load).
+                            $rate = (float) ($prod['rate'] ?? 0.00);
                         ?>
                         <div class="pos-product-card-container" 
                              data-id="<?= $prod['id'] ?>"

@@ -115,9 +115,11 @@ class Purchases extends AdminController
         $data['title'] = 'Purchase Orders';
         
         $pos = $this->purchases_model->get_purchase_orders();
+        $items_by_po = $this->purchases_model->get_purchase_order_items_for_pos(array_column($pos, 'id'));
         foreach ($pos as &$po) {
-            $po['items'] = $this->purchases_model->get_purchase_order_items($po['id']);
+            $po['items'] = $items_by_po[(int) $po['id']] ?? [];
         }
+        unset($po);
         $data['purchase_orders'] = $pos;
         $data['suppliers'] = $this->purchases_model->get_suppliers();
         

@@ -48,9 +48,29 @@ class Wcsync extends AdminController
                 access_denied('WooCommerce Settings');
             }
 
+            $this->load->library('form_validation');
+            $this->form_validation->set_rules('name', 'Site Name', 'required|trim');
+            $this->form_validation->set_rules('site_url', 'Site URL', 'required|trim|valid_url');
+            $this->form_validation->set_rules('credential_id', 'Credential', 'required|is_natural_no_zero');
+            $this->form_validation->set_rules('default_lead_status_id', 'Default Lead Status', 'required|is_natural_no_zero');
+
+            if ($this->form_validation->run() === false) {
+                set_alert('danger', validation_errors());
+                redirect(admin_url('wcsync/settings'));
+            }
+
+            $credential_id = (int) $this->input->post('credential_id');
+            $this->db->where('id', $credential_id);
+            $this->db->where('owner_module', 'wcsync');
+            $credential = $this->db->get(db_prefix() . 'ecomcore_credentials')->row();
+            if (!$credential) {
+                set_alert('danger', 'Selected credential is invalid or does not belong to WooCommerce Sync.');
+                redirect(admin_url('wcsync/settings'));
+            }
+
             $id = $this->input->post('id') ? (int) $this->input->post('id') : null;
             $this->wcsync_model->save_site($this->input->post(), $id);
-            
+
             set_alert('success', 'WooCommerce Site configuration saved successfully.');
             redirect(admin_url('wcsync/settings'));
         }
@@ -90,7 +110,9 @@ class Wcsync extends AdminController
 
         try {
             $counts = $this->wcsync_model->sync();
-            echo json_encode(array_merge(['success' => true], $counts));
+            // sync() now reports its own 'success' (false if any site's fetch
+            // genuinely failed) — don't override it with a hardcoded true.
+            echo json_encode($counts);
         } catch (Throwable $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }

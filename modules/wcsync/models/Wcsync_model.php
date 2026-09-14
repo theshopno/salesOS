@@ -75,16 +75,28 @@ class Wcsync_model extends App_Model
             'unchanged'      => 0,
             'failed'         => 0,
         ];
+        $site_errors = [];
 
         $sites = $this->get_sites();
         foreach ($sites as $site) {
             $counts = $this->sync_site($site);
+            if (!empty($counts['fetch_error'])) {
+                $site_errors[] = $site['name'] . ': ' . $counts['fetch_error'];
+            }
+            unset($counts['fetch_error']);
             foreach ($counts as $k => $v) {
                 if (isset($totals[$k])) {
                     $totals[$k] += $v;
                 }
             }
         }
+
+        // Real fetch failures (bad credentials, unreachable site, HTTP error) must be
+        // visible to the caller — previously indistinguishable from "no orders to
+        // sync," so sync_now() always reported success:true even when nothing was
+        // actually fetched.
+        $totals['success']     = empty($site_errors);
+        $totals['site_errors'] = $site_errors;
 
         return $totals;
     }
@@ -96,14 +108,23 @@ class Wcsync_model extends App_Model
             'status_updated' => 0,
             'unchanged'      => 0,
             'failed'         => 0,
+            'fetch_error'    => null,
         ];
-        
+
         $page = 1;
-        
+
         do {
             $orders = $this->fetch_orders($site, $page);
-            
-            if ($orders === false || empty($orders)) {
+
+            if ($orders === false) {
+                // A real fetch failure (bad credentials, network/HTTP error) — distinct
+                // from "no more orders." fetch_orders() already logs the specific
+                // cause via log_activity(); surface a summary here for the caller.
+                $counts['fetch_error'] = 'Failed to fetch orders from ' . $site['site_url'];
+                break;
+            }
+
+            if (empty($orders)) {
                 break;
             }
 
@@ -161,7 +182,7 @@ class Wcsync_model extends App_Model
             CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
             CURLOPT_USERPWD        => $payload['consumer_key'] . ':' . $payload['consumer_secret'],
             CURLOPT_TIMEOUT        => 15,
-            CURLOPT_SSL_VERIFYPEER => false, // Bypass SSL for local development / testing
+            CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
         $response   = curl_exec($ch);
@@ -398,7 +419,7 @@ class Wcsync_model extends App_Model
             CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
             CURLOPT_USERPWD        => $payload['consumer_key'] . ':' . $payload['consumer_secret'],
             CURLOPT_TIMEOUT        => 10,
-            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYPEER => true,
         ]);
         $response = curl_exec($ch);
         curl_close($ch);

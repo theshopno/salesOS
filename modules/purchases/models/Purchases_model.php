@@ -92,6 +92,31 @@ class Purchases_model extends App_Model
         return $this->db->get()->result_array();
     }
 
+    /**
+     * Same as get_purchase_order_items() but for many POs in one query — used by
+     * the purchase orders list page, which previously ran one query per row.
+     *
+     * @return array<int, array> items grouped by purchase_order_id
+     */
+    public function get_purchase_order_items_for_pos(array $po_ids): array
+    {
+        if (empty($po_ids)) {
+            return [];
+        }
+
+        $this->db->select('poi.*, ip.name as product_name, ip.sku as product_sku');
+        $this->db->from(db_prefix() . 'purchases_order_items poi');
+        $this->db->join(db_prefix() . 'inventory_products ip', 'ip.id = poi.product_id');
+        $this->db->where_in('poi.purchase_order_id', $po_ids);
+        $rows = $this->db->get()->result_array();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[(int) $row['purchase_order_id']][] = $row;
+        }
+        return $grouped;
+    }
+
     public function add_purchase_order(array $data): int
     {
         $this->db->trans_start();

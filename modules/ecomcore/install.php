@@ -81,3 +81,17 @@ if (!$CI->db->table_exists($db_prefix . 'ecomcore_events')) {
         KEY `entity` (`entity_type`, `entity_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
+
+// 5. Indexed phone-suffix generated column on core CRM tables, shared by every
+// module's phone-matching (ecomcore, wooconnector). The old approach matched via
+// RIGHT(REPLACE(REPLACE(REPLACE(phonenumber,...)))) in the WHERE clause, which
+// MySQL/MariaDB cannot use an index through — every lookup was a full table scan.
+// A STORED generated column can be indexed normally.
+foreach (['leads', 'contacts'] as $table) {
+    if (!$CI->db->field_exists('phone_suffix10', $db_prefix . $table)) {
+        $CI->db->query("ALTER TABLE `{$db_prefix}{$table}`
+            ADD COLUMN `phone_suffix10` VARCHAR(10)
+                GENERATED ALWAYS AS (RIGHT(REGEXP_REPLACE(phonenumber, '[^0-9]', ''), 10)) STORED,
+            ADD INDEX `phone_suffix10` (`phone_suffix10`);");
+    }
+}

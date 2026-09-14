@@ -17,6 +17,20 @@ class Ecomcore_model extends App_Model
      */
     public function import_order(array $generic_order): int
     {
+        // Guard against re-importing the same channel order before touching the DB —
+        // the UNIQUE KEY on (channel, channel_ref_id) would also catch this, but that
+        // relies on an uncaught exception path; check explicitly instead.
+        $channel = $generic_order['channel'];
+        $channel_ref_id = $generic_order['channel_ref_id'] ?? null;
+        if ($channel_ref_id !== null) {
+            $this->db->where('channel', $channel);
+            $this->db->where('channel_ref_id', $channel_ref_id);
+            $existing = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+            if ($existing) {
+                return (int) $existing->id;
+            }
+        }
+
         $this->db->trans_start();
 
         // 1. Customer matching
@@ -60,7 +74,12 @@ class Ecomcore_model extends App_Model
 
         $this->db->trans_complete();
 
-        // 4. Log event and trigger hooks
+        if ($this->db->trans_status() === false) {
+            log_activity('Ecomcore import_order transaction failed for channel ' . $channel . ' ref ' . ($channel_ref_id ?? 'null'));
+            return 0;
+        }
+
+        // 4. Log event and trigger hooks — only reached on a committed transaction
         $this->log_event('order.created', 'order', $order_id, [
             'channel' => $generic_order['channel'],
             'total'   => $generic_order['total'] ?? 0.00,
@@ -154,10 +173,15 @@ class Ecomcore_model extends App_Model
         }
 
         $this->db->where('id', $order_id);
-        $this->db->update(db_prefix() . 'ecomcore_orders', [
+        $updated = $this->db->update(db_prefix() . 'ecomcore_orders', [
             'status'     => $status,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+
+        if (!$updated) {
+            log_activity('Ecomcore set_order_status failed to update order #' . $order_id);
+            return false;
+        }
 
         $this->log_event('order.status_changed', 'order', $order_id, [
             'old_status' => $old_status,
@@ -213,22 +237,24 @@ class Ecomcore_model extends App_Model
         return $digits !== '' ? substr($digits, -10) : '';
     }
 
-    private function phone_suffix_sql($column): string
-    {
-        return "RIGHT(REPLACE(REPLACE(REPLACE({$column}, '+', ''), ' ', ''), '-', ''), 10)";
-    }
-
     private function find_client_by_phone(string $phone_suffix)
     {
-        $sql = 'SELECT userid FROM ' . db_prefix() . 'contacts WHERE ' . $this->phone_suffix_sql('phonenumber') . ' = ? LIMIT 1';
-        $row = $this->db->query($sql, [$phone_suffix])->row();
+        // Indexed equality on the generated phone_suffix10 column (see install.php) —
+        // not a function-wrapped WHERE, so this can actually use an index as the
+        // contacts table grows.
+        $this->db->select('userid');
+        $this->db->where('phone_suffix10', $phone_suffix);
+        $row = $this->db->get(db_prefix() . 'contacts')->row();
         return $row ? (int) $row->userid : null;
     }
 
     private function find_open_lead_by_phone(string $phone_suffix)
     {
-        $sql = 'SELECT id FROM ' . db_prefix() . 'leads WHERE lost = 0 AND junk = 0 AND ' . $this->phone_suffix_sql('phonenumber') . ' = ? LIMIT 1';
-        $row = $this->db->query($sql, [$phone_suffix])->row();
+        $this->db->select('id');
+        $this->db->where('lost', 0);
+        $this->db->where('junk', 0);
+        $this->db->where('phone_suffix10', $phone_suffix);
+        $row = $this->db->get(db_prefix() . 'leads')->row();
         return $row ? (int) $row->id : null;
     }
 

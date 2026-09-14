@@ -148,6 +148,13 @@ class Returns extends AdminController
 
         if ($this->input->post()) {
             $status = $this->input->post('status');
+            $valid_statuses = ['requested', 'approved', 'rejected', 'received', 'restocked', 'refunded'];
+
+            if (!in_array($status, $valid_statuses, true)) {
+                set_alert('danger', 'Invalid return status.');
+                redirect(admin_url('returns/view/' . $id));
+            }
+
             if ($this->returns_model->update_status($id, $status)) {
                 set_alert('success', 'Return status updated successfully.');
             } else {

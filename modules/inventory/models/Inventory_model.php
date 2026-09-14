@@ -14,7 +14,7 @@ class Inventory_model extends App_Model
      */
     public function get_products(): array
     {
-        $this->db->select('p.*, c.name as category_name, SUM(s.qty_on_hand) as stock_on_hand, i.description as item_name');
+        $this->db->select('p.*, c.name as category_name, SUM(s.qty_on_hand) as stock_on_hand, i.description as item_name, i.rate as rate');
         $this->db->from(db_prefix() . 'inventory_products p');
         $this->db->join(db_prefix() . 'inventory_categories c', 'c.id = p.category_id', 'left');
         $this->db->join(db_prefix() . 'inventory_stock s', 's.product_id = p.id', 'left');
@@ -115,15 +115,33 @@ class Inventory_model extends App_Model
     {
         $this->db->trans_start();
 
-        // Get current stock
+        $db_prefix = db_prefix();
+        $now = date('Y-m-d H:i:s');
+
+        // Atomic upsert instead of read-then-write: two concurrent sales of the same
+        // last unit used to both read the same starting qty_on_hand and both succeed
+        // (lost-update / oversell). INSERT ... ON DUPLICATE KEY UPDATE takes a row
+        // lock on the (product_id, warehouse_id) unique key for this statement, so
+        // concurrent adjustments serialize correctly instead of racing.
+        $this->db->query(
+            "INSERT INTO `{$db_prefix}inventory_stock` (product_id, warehouse_id, qty_on_hand, qty_reserved, updated_at)
+             VALUES (?, ?, ?, 0.00, ?)
+             ON DUPLICATE KEY UPDATE qty_on_hand = qty_on_hand + VALUES(qty_on_hand), updated_at = VALUES(updated_at)",
+            [$product_id, $warehouse_id, $qty, $now]
+        );
+
+        // Re-select within the same transaction for the ledger's balance_after —
+        // this reads back our own just-written row, so it's race-free even though
+        // it's a separate statement.
         $this->db->where('product_id', $product_id);
         $this->db->where('warehouse_id', $warehouse_id);
         $stock = $this->db->get(db_prefix() . 'inventory_stock')->row();
+        $balance_after = $stock ? (float) $stock->qty_on_hand : $qty;
 
-        $current_qty = $stock ? (float) $stock->qty_on_hand : 0.00;
-        $balance_after = $current_qty + $qty;
+        if ($balance_after < 0) {
+            log_activity("Inventory: product #{$product_id} warehouse #{$warehouse_id} went negative ({$balance_after}) after a '{$movement_type}' adjustment of {$qty}");
+        }
 
-        // Insert ledger entry
         $ledger_data = [
             'product_id'    => $product_id,
             'warehouse_id'  => $warehouse_id,
@@ -134,26 +152,9 @@ class Inventory_model extends App_Model
             'ref_id'        => $ref_id,
             'staff_id'      => get_staff_user_id() ?: null,
             'note'          => $note,
-            'created_at'    => date('Y-m-d H:i:s'),
+            'created_at'    => $now,
         ];
         $this->db->insert(db_prefix() . 'inventory_stock_ledger', $ledger_data);
-
-        // Update stock level snapshot
-        if ($stock) {
-            $this->db->where('id', $stock->id);
-            $this->db->update(db_prefix() . 'inventory_stock', [
-                'qty_on_hand' => $balance_after,
-                'updated_at'  => date('Y-m-d H:i:s'),
-            ]);
-        } else {
-            $this->db->insert(db_prefix() . 'inventory_stock', [
-                'product_id'   => $product_id,
-                'warehouse_id' => $warehouse_id,
-                'qty_on_hand'  => $balance_after,
-                'qty_reserved' => 0.00,
-                'updated_at'   => date('Y-m-d H:i:s'),
-            ]);
-        }
 
         $this->db->trans_complete();
         return $this->db->trans_status();
