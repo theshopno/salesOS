@@ -74,10 +74,17 @@ function inventory_register_menu(): void
     ]);
 
     $CI->app_menu->add_sidebar_children_item('ecomcore', [
-        'slug'     => 'inventory-categories', 
+        'slug'     => 'inventory-categories',
         'name'     => 'Categories',
-        'href'     => admin_url('inventory/categories'), 
+        'href'     => admin_url('inventory/categories'),
         'position' => 12,
+    ]);
+
+    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+        'slug'     => 'inventory-settings',
+        'name'     => 'Inventory Settings',
+        'href'     => admin_url('inventory/settings'),
+        'position' => 14,
     ]);
 }
 

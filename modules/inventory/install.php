@@ -96,3 +96,7 @@ if (!$CI->db->table_exists($db_prefix . 'inventory_stock_ledger')) {
         KEY `ref` (`ref_type`, `ref_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
+
+// 6. Settings. Overselling defaults to OFF — a sale may not take stock below
+// zero unless the operator deliberately turns it on (the backorder case).
+add_option('inventory_allow_oversell', '0');

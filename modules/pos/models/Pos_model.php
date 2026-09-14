@@ -8,6 +8,7 @@ class Pos_model extends App_Model
     {
         parent::__construct();
         $this->load->model('ecomcore/ecomcore_model');
+        $this->load->model('inventory/inventory_model');
         $this->load->model('invoices_model');
         $this->load->model('payments_model');
     }
@@ -163,6 +164,22 @@ class Pos_model extends App_Model
             $product = $this->db->get(db_prefix() . 'inventory_products')->row();
             if (!$product) {
                 throw new Exception("Product ID {$product_id} not found in inventory catalog.");
+            }
+
+            // Reject the sale here, before any money is taken. Stock is actually
+            // deducted later by inventory's ecomcore_order_confirmed listener, which
+            // runs after the order is committed and so cannot refuse the sale itself.
+            if (!$this->inventory_model->oversell_allowed()) {
+                // Deliberately the default warehouse, not the register's own
+                // warehouse_id: that is the one handle_order_confirmed() will
+                // deduct from, and the check has to match the deduction.
+                $available = $this->inventory_model->get_stock_on_hand(
+                    $product_id,
+                    $this->inventory_model->get_default_warehouse_id()
+                );
+                if ($qty > $available) {
+                    throw new Exception("Insufficient stock for {$product->name} — {$available} available, {$qty} requested.");
+                }
             }
 
             $generic_items[] = [

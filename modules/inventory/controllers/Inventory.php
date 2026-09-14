@@ -90,6 +90,24 @@ class Inventory extends AdminController
         redirect(admin_url('inventory/categories'));
     }
 
+    public function settings()
+    {
+        if (!staff_can('edit', 'inventory')) {
+            access_denied('Inventory Settings');
+        }
+
+        if ($this->input->post()) {
+            update_option('inventory_allow_oversell', $this->input->post('inventory_allow_oversell') === '1' ? '1' : '0');
+            set_alert('success', 'Inventory settings saved.');
+            redirect(admin_url('inventory/settings'));
+        }
+
+        $data['title']                   = 'Inventory Settings';
+        $data['inventory_allow_oversell'] = get_option('inventory_allow_oversell') === '1';
+
+        $this->load->view('inventory/settings', $data);
+    }
+
     public function adjustments()
     {
         if ($this->input->post()) {
@@ -104,8 +122,13 @@ class Inventory extends AdminController
 
             $wh_id = $this->inventory_model->get_default_warehouse_id();
             
-            $this->inventory_model->adjust_stock($product_id, $wh_id, $qty, $type, 'manual', null, $note);
-            set_alert('success', 'Stock adjusted successfully.');
+            if ($this->inventory_model->adjust_stock($product_id, $wh_id, $qty, $type, 'manual', null, $note)) {
+                set_alert('success', 'Stock adjusted successfully.');
+            } else {
+                $available = $this->inventory_model->get_stock_on_hand($product_id, $wh_id);
+                set_alert('danger', 'Stock not adjusted — only ' . $available . ' in stock and overselling is disabled.');
+            }
+
             redirect(admin_url('inventory/adjustments'));
         }
 

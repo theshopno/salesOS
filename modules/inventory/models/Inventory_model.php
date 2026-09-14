@@ -108,8 +108,27 @@ class Inventory_model extends App_Model
 
     // ── Stock Adjustments & Ledger ────────────────────────────────────────────
 
+    /** Is selling below available stock (backorder) permitted? */
+    public function oversell_allowed(): bool
+    {
+        return get_option('inventory_allow_oversell') === '1';
+    }
+
+    /** Current on-hand quantity for a product in a warehouse. */
+    public function get_stock_on_hand(int $product_id, int $warehouse_id): float
+    {
+        $this->db->where('product_id', $product_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $stock = $this->db->get(db_prefix() . 'inventory_stock')->row();
+
+        return $stock ? (float) $stock->qty_on_hand : 0.00;
+    }
+
     /**
      * Core stock adjustment method writing to ledger and updating current stock.
+     *
+     * Returns false without writing anything when the movement would take stock
+     * below zero and overselling is disabled.
      */
     public function adjust_stock(int $product_id, int $warehouse_id, float $qty, string $movement_type, string $ref_type = null, int $ref_id = null, string $note = null): bool
     {
@@ -117,18 +136,41 @@ class Inventory_model extends App_Model
 
         $db_prefix = db_prefix();
         $now = date('Y-m-d H:i:s');
+        $guard_negative = $qty < 0 && !$this->oversell_allowed();
 
-        // Atomic upsert instead of read-then-write: two concurrent sales of the same
-        // last unit used to both read the same starting qty_on_hand and both succeed
-        // (lost-update / oversell). INSERT ... ON DUPLICATE KEY UPDATE takes a row
-        // lock on the (product_id, warehouse_id) unique key for this statement, so
-        // concurrent adjustments serialize correctly instead of racing.
-        $this->db->query(
-            "INSERT INTO `{$db_prefix}inventory_stock` (product_id, warehouse_id, qty_on_hand, qty_reserved, updated_at)
-             VALUES (?, ?, ?, 0.00, ?)
-             ON DUPLICATE KEY UPDATE qty_on_hand = qty_on_hand + VALUES(qty_on_hand), updated_at = VALUES(updated_at)",
-            [$product_id, $warehouse_id, $qty, $now]
-        );
+        if ($guard_negative) {
+            // Enforce the floor inside the UPDATE itself rather than reading the
+            // balance first and deciding in PHP — the check and the write have to be
+            // one statement, or two concurrent sales of the same last unit can both
+            // pass the check before either writes.
+            $this->db->query(
+                "UPDATE `{$db_prefix}inventory_stock`
+                 SET qty_on_hand = qty_on_hand + ?, updated_at = ?
+                 WHERE product_id = ? AND warehouse_id = ? AND qty_on_hand + ? >= 0",
+                [$qty, $now, $product_id, $warehouse_id, $qty]
+            );
+
+            // Zero rows means either no stock row exists (on-hand is 0) or the
+            // movement would have gone below zero — both are refusals.
+            if ($this->db->affected_rows() === 0) {
+                $this->db->trans_complete();
+                log_activity("Inventory: refused '{$movement_type}' of {$qty} for product #{$product_id} in warehouse #{$warehouse_id} — insufficient stock and overselling is disabled");
+
+                return false;
+            }
+        } else {
+            // Atomic upsert instead of read-then-write: two concurrent sales of the same
+            // last unit used to both read the same starting qty_on_hand and both succeed
+            // (lost-update / oversell). INSERT ... ON DUPLICATE KEY UPDATE takes a row
+            // lock on the (product_id, warehouse_id) unique key for this statement, so
+            // concurrent adjustments serialize correctly instead of racing.
+            $this->db->query(
+                "INSERT INTO `{$db_prefix}inventory_stock` (product_id, warehouse_id, qty_on_hand, qty_reserved, updated_at)
+                 VALUES (?, ?, ?, 0.00, ?)
+                 ON DUPLICATE KEY UPDATE qty_on_hand = qty_on_hand + VALUES(qty_on_hand), updated_at = VALUES(updated_at)",
+                [$product_id, $warehouse_id, $qty, $now]
+            );
+        }
 
         // Re-select within the same transaction for the ledger's balance_after —
         // this reads back our own just-written row, so it's race-free even though
@@ -139,7 +181,7 @@ class Inventory_model extends App_Model
         $balance_after = $stock ? (float) $stock->qty_on_hand : $qty;
 
         if ($balance_after < 0) {
-            log_activity("Inventory: product #{$product_id} warehouse #{$warehouse_id} went negative ({$balance_after}) after a '{$movement_type}' adjustment of {$qty}");
+            log_activity("Inventory: product #{$product_id} warehouse #{$warehouse_id} is negative ({$balance_after}) after a '{$movement_type}' adjustment of {$qty} — overselling is enabled");
         }
 
         $ledger_data = [
@@ -235,7 +277,14 @@ class Inventory_model extends App_Model
 
             if ($product_id) {
                 $qty = (float) $item['qty'];
-                $this->adjust_stock($product_id, $wh_id, -$qty, 'sale_out', 'ecomcore_order', $order_id, 'Ecomcore order confirmed');
+                $deducted = $this->adjust_stock($product_id, $wh_id, -$qty, 'sale_out', 'ecomcore_order', $order_id, 'Ecomcore order confirmed');
+
+                // The order is already committed by the time this hook runs, so a
+                // refusal cannot unwind it — record it loudly instead, since the
+                // order now promises stock the warehouse does not have.
+                if (!$deducted) {
+                    log_activity("Inventory: order #{$order_id} confirmed but {$qty} x product #{$product_id} could not be deducted — insufficient stock and overselling is disabled");
+                }
             }
         }
     }
