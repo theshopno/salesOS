@@ -1,0 +1,17 @@
+[Unit]
+Description=pbxpilot v2 — AMI event consumer (screen-pop active-call feed)
+# Populates pbxpilot_active_calls from live AMI events so the browser
+# channel's poller (Api::active_calls()) and the Desktop Trigger's
+# screenpop endpoint have something to show. Needs the AMI tunnel/route
+# already up — see pbxpilot-pbx-tunnel.service (or pbxpilot-kutumbari-tunnel.service).
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/php CHANGE_ME/modules/pbxpilot/daemons/ami_consumer.php
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

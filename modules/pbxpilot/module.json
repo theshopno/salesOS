@@ -1,0 +1,9 @@
+{
+    "system_name": "pbxpilot",
+    "headers_name": "PBX Pilot",
+    "description": "Voice & Agency Platform for Perfex CRM — Asterisk PBX telephony, AI call intelligence, and agency workflows. v2 rebuild per docs/pbxpilot-architecture-plan.md.",
+    "version": "2.0.0",
+    "requires_at_least": "2.3.4",
+    "author": "PBX Pilot",
+    "website": ""
+}
