@@ -98,7 +98,7 @@ class Returns extends AdminController
             return;
         }
 
-        $order = $this->db->get_where(db_prefix() . 'salesos_orders', ['id' => $salesos_order_id])->row();
+        $order = $this->salesos_model->get_order((int) $salesos_order_id);
         if (!$order) {
             echo json_encode([]);
             return;
@@ -108,11 +108,11 @@ class Returns extends AdminController
 
         echo json_encode([
             'order' => [
-                'id'             => $order->id,
-                'channel'        => $order->channel,
-                'channel_ref_id' => $order->channel_ref_id,
-                'total'          => $order->total,
-                'order_date'     => $order->order_date
+                'id'             => $order['id'],
+                'channel'        => $order['channel'],
+                'channel_ref_id' => $order['channel_ref_id'],
+                'total'          => $order['total'],
+                'order_date'     => $order['order_date'],
             ],
             'items' => $items
         ]);

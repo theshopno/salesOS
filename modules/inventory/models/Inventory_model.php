@@ -224,8 +224,8 @@ class Inventory_model extends App_Model
 
     public function handle_order_confirmed(int $order_id): void
     {
-        $this->db->where('order_id', $order_id);
-        $items = $this->db->get(db_prefix() . 'salesos_order_items')->result_array();
+        $this->load->model('salesos/salesos_model');
+        $items = $this->salesos_model->get_order_items($order_id);
         $wh_id = $this->get_default_warehouse_id();
 
         foreach ($items as $item) {

@@ -142,8 +142,8 @@ class Returns_model extends App_Model
     public function get_eligible_order_items($order_id)
     {
         $db_prefix = db_prefix();
-        $this->db->where('order_id', $order_id);
-        $items = $this->db->get($db_prefix . 'salesos_order_items')->result_array();
+        $this->load->model('salesos/salesos_model');
+        $items = $this->salesos_model->get_order_items((int) $order_id);
 
         $eligible = [];
         foreach ($items as $item) {

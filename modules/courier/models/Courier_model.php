@@ -39,10 +39,9 @@ class Courier_model extends App_Model
         $account = $this->db->get($db_prefix . 'courier_accounts')->row_array();
 
         if ($account) {
-            $this->db->where('id', $account['credential_id']);
-            $cred = $this->db->get($db_prefix . 'salesos_credentials')->row();
+            $cred = $this->salesos_model->get_credential((int) $account['credential_id'], 'courier');
             if ($cred) {
-                $decrypted = $this->salesos_encryption->decrypt($cred->payload, true);
+                $decrypted = $cred['payload'];
                 if (is_array($decrypted)) {
                     $account['api_key']       = $decrypted['api_key'] ?? '';
                     $account['secret_key']     = $decrypted['secret_key'] ?? '';
@@ -684,9 +683,8 @@ class Courier_model extends App_Model
     public function get_order_with_customer($order_id)
     {
         $db_prefix = db_prefix();
-        $this->db->where('id', $order_id);
-        $order = $this->db->get($db_prefix . 'salesos_orders')->row_array();
-        
+        $order = $this->salesos_model->get_order((int) $order_id);
+
         if (!$order) {
             return null;
         }

@@ -154,15 +154,14 @@ class Wcsync_model extends App_Model
 
     public function fetch_orders(array $site, int $page = 1)
     {
-        // 1. Get credentials from vault
-        $this->db->where('id', $site['credential_id']);
-        $cred = $this->db->get(db_prefix() . 'salesos_credentials')->row();
+        // 1. Get credentials from the kernel's vault, scoped to this module
+        $cred = $this->salesos_model->get_credential((int) $site['credential_id'], 'wcsync');
         if (!$cred) {
             log_activity('Wcsync site ' . $site['name'] . ' has invalid credential_id: ' . $site['credential_id']);
             return false;
         }
 
-        $payload = $this->salesos_encryption->decrypt($cred->payload, true);
+        $payload = $cred['payload'];
         if (!$payload || empty($payload['consumer_key']) || empty($payload['consumer_secret'])) {
             log_activity('Wcsync site ' . $site['name'] . ' unable to decrypt credentials.');
             return false;
@@ -314,13 +313,12 @@ class Wcsync_model extends App_Model
 
         if ($existing) {
             // Check status update (either salesos status mismatch or wc status column mismatch/missing)
-            $this->db->where('id', $existing->salesos_order_id);
-            $eco_order = $this->db->get(db_prefix() . 'salesos_orders')->row();
-            
+            $eco_order = $this->salesos_model->get_order((int) $existing->salesos_order_id);
+
             $wc_status_mismatch = !isset($existing->wc_status) || $existing->wc_status !== $wc_status;
-            
-            if ($eco_order && ($eco_order->status !== $target_status || $wc_status_mismatch)) {
-                if ($eco_order->status !== $target_status) {
+
+            if ($eco_order && ($eco_order['status'] !== $target_status || $wc_status_mismatch)) {
+                if ($eco_order['status'] !== $target_status) {
                     $this->salesos_model->set_order_status($existing->salesos_order_id, $target_status);
                 }
                 
@@ -406,10 +404,9 @@ class Wcsync_model extends App_Model
      */
     public function fetch_product(array $site, int $product_id)
     {
-        $this->db->where('id', $site['credential_id']);
-        $cred = $this->db->get(db_prefix() . 'salesos_credentials')->row();
+        $cred = $this->salesos_model->get_credential((int) $site['credential_id'], 'wcsync');
         if (!$cred) return false;
-        $payload = $this->salesos_encryption->decrypt($cred->payload, true);
+        $payload = $cred['payload'];
         if (!$payload || empty($payload['consumer_key']) || empty($payload['consumer_secret'])) return false;
 
         $url = $site['site_url'] . '/wp-json/wc/v3/products/' . $product_id;

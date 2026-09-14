@@ -229,6 +229,102 @@ class Salesos_model extends App_Model
         ]);
     }
 
+    // ── Read API for add-on modules ───────────────────────────────────────────
+    // Add-ons read kernel-owned data through these rather than querying
+    // tblsalesos_* directly, so a change to this schema is a change in one
+    // place instead of eight. See HOOKS.md for the write/event side.
+
+    /** @return array|null the order row, or null if there is no such order */
+    public function get_order(int $order_id): ?array
+    {
+        $order = $this->db->where('id', $order_id)
+            ->get(db_prefix() . 'salesos_orders')
+            ->row_array();
+
+        return $order ?: null;
+    }
+
+    /** @return array the order's line items, empty if the order has none */
+    public function get_order_items(int $order_id): array
+    {
+        return $this->db->where('order_id', $order_id)
+            ->get(db_prefix() . 'salesos_order_items')
+            ->result_array();
+    }
+
+    /**
+     * Fetch a credential and decrypt its payload, but only for the module that
+     * owns it. Passing the expected owner is what stops one add-on reading
+     * another's secrets by id — a posted credential_id is attacker-controlled,
+     * so the ownership check belongs here rather than in each caller.
+     *
+     * @return array|null the row with `payload` decrypted, or null if it does
+     *                    not exist, is inactive, or belongs to another module
+     */
+    public function get_credential(int $credential_id, string $expected_owner_module): ?array
+    {
+        $cred = $this->db->where('id', $credential_id)
+            ->get(db_prefix() . 'salesos_credentials')
+            ->row_array();
+
+        if (!$cred) {
+            return null;
+        }
+
+        if ($cred['owner_module'] !== $expected_owner_module) {
+            log_activity("Salesos: {$expected_owner_module} asked for credential #{$credential_id}, which belongs to {$cred['owner_module']} — refused");
+
+            return null;
+        }
+
+        $this->load->library('salesos/salesos_encryption');
+        $cred['payload'] = $this->salesos_encryption->decrypt($cred['payload'], true);
+
+        return $cred;
+    }
+
+    /**
+     * The active credential a module holds for a given type, for callers that
+     * configure one credential per purpose rather than referencing one by id.
+     *
+     * @return array|null the row with `payload` decrypted, or null if the
+     *                    module has no active credential of that type
+     */
+    public function get_active_credential(string $owner_module, string $cred_type): ?array
+    {
+        $cred = $this->db->where('owner_module', $owner_module)
+            ->where('cred_type', $cred_type)
+            ->where('is_active', 1)
+            ->get(db_prefix() . 'salesos_credentials')
+            ->row_array();
+
+        if (!$cred) {
+            return null;
+        }
+
+        $this->load->library('salesos/salesos_encryption');
+        $cred['payload'] = $this->salesos_encryption->decrypt($cred['payload'], true);
+
+        return $cred;
+    }
+
+    /**
+     * A module's own credentials for picking one in a UI. Deliberately never
+     * returns `payload`: a select box needs the label, not the secret, and
+     * encrypted payloads have no business reaching a view.
+     */
+    public function list_credentials(string $owner_module, bool $active_only = true): array
+    {
+        $this->db->select('id, owner_module, label, cred_type, is_active, last_used_at')
+            ->where('owner_module', $owner_module);
+
+        if ($active_only) {
+            $this->db->where('is_active', 1);
+        }
+
+        return $this->db->get(db_prefix() . 'salesos_credentials')->result_array();
+    }
+
     // ── Phone matching helpers ────────────────────────────────────────────────
 
     private function normalize_phone($phone): string

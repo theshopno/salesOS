@@ -8,6 +8,7 @@ class Wcsync extends AdminController
     {
         parent::__construct();
         $this->load->model('wcsync_model');
+        $this->load->model('salesos/salesos_model');
         if (!staff_can('view', 'wcsync')) {
             access_denied('WooCommerce Sync');
         }
@@ -60,10 +61,7 @@ class Wcsync extends AdminController
             }
 
             $credential_id = (int) $this->input->post('credential_id');
-            $this->db->where('id', $credential_id);
-            $this->db->where('owner_module', 'wcsync');
-            $credential = $this->db->get(db_prefix() . 'salesos_credentials')->row();
-            if (!$credential) {
+            if (!$this->salesos_model->get_credential($credential_id, 'wcsync')) {
                 set_alert('danger', 'Selected credential is invalid or does not belong to WooCommerce Sync.');
                 redirect(admin_url('wcsync/settings'));
             }
@@ -79,10 +77,7 @@ class Wcsync extends AdminController
         $data['sites'] = $this->wcsync_model->get_sites();
 
         // Load credentials from vault belonging to wcsync
-        $data['credentials'] = $this->db->get_where(db_prefix() . 'salesos_credentials', [
-            'owner_module' => 'wcsync',
-            'is_active'    => 1
-        ])->result_array();
+        $data['credentials'] = $this->salesos_model->list_credentials('wcsync');
 
         // Load Lead Statuses
         $data['lead_statuses'] = $this->db->order_by('statusorder', 'asc')->get(db_prefix() . 'leads_status')->result_array();

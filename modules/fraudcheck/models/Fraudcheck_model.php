@@ -55,12 +55,10 @@ class Fraudcheck_model extends App_Model
             }
         }
 
-        // 2. Fetch API Key from Salesos Credentials Vault
-        $this->db->where('owner_module', 'fraudcheck');
-        $this->db->where('cred_type', 'api_key');
-        $this->db->where('is_active', 1);
-        $cred = $this->db->get($db_prefix . 'salesos_credentials')->row_array();
-        
+        // 2. Fetch API Key from the kernel's credential vault
+        $this->load->model('salesos/salesos_model');
+        $cred = $this->salesos_model->get_active_credential('fraudcheck', 'api_key');
+
         if (!$cred) {
             log_message('error', 'Fraudcheck: No active BDCourier API Key credential found in vault.');
             // Fallback to cache if available, even if expired
@@ -68,9 +66,7 @@ class Fraudcheck_model extends App_Model
             return $this->db->get($db_prefix . 'fraudcheck_lookups')->row_array();
         }
 
-        $this->load->library('salesos/salesos_encryption');
-        $payload_decrypted = $this->salesos_encryption->decrypt($cred['payload'], true);
-        $api_key = $payload_decrypted['api_key'] ?? '';
+        $api_key = $cred['payload']['api_key'] ?? '';
 
         if (empty($api_key)) {
             log_message('error', 'Fraudcheck: Decrypted BDCourier API Key is empty.');
