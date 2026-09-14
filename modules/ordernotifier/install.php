@@ -4,8 +4,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 $db_prefix = db_prefix();
 
-if (!$this->db->table_exists($db_prefix . 'ordernotifier_logs')) {
-    $this->db->query("
+if (!$CI->db->table_exists($db_prefix . 'ordernotifier_logs')) {
+    $CI->db->query("
         CREATE TABLE `{$db_prefix}ordernotifier_logs` (
             `id` INT(11) AUTO_INCREMENT PRIMARY KEY,
             `order_id` INT(11) NOT NULL,

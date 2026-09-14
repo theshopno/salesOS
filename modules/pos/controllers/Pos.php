@@ -8,8 +8,17 @@ class Pos extends AdminController
     {
         parent::__construct();
         $this->load->model('pos_model');
+
+        // POS sells stock the inventory module owns — without it, every screen
+        // here queries tables that do not exist. Fail with a clear message
+        // instead of a SQL error the operator cannot act on.
+        if (!$this->app_modules->is_active('inventory')) {
+            set_alert('danger', 'Point of Sale requires the Inventory module to be active.');
+            redirect(admin_url());
+        }
+
         $this->load->model('inventory/inventory_model');
-        
+
         if (!staff_can('view', 'pos')) {
             access_denied('Point of Sale');
         }

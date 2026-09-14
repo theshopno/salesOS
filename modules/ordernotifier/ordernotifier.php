@@ -11,6 +11,13 @@ Requires at least: 2.3.0
 
 define('ORDERNOTIFIER_MODULE_NAME', 'ordernotifier');
 
+register_activation_hook(ORDERNOTIFIER_MODULE_NAME, 'ordernotifier_activation_hook');
+function ordernotifier_activation_hook(): void
+{
+    $CI = &get_instance();
+    require(__DIR__ . '/install.php');
+}
+
 // Register ecomcore hooks
 hooks()->add_action('ecomcore_order_created', 'ordernotifier_handle_order_created');
 hooks()->add_action('ecomcore_order_confirmed', 'ordernotifier_handle_order_confirmed');

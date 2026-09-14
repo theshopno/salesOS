@@ -15,8 +15,19 @@ class Ordernotifier_model extends CI_Model
     public function notify($order_id, $event)
     {
         $db_prefix = db_prefix();
+
+        // courier is an optional sibling module — its tables only exist when it is
+        // installed, so join them conditionally rather than assuming they are there.
+        $courier_active = $this->db->table_exists($db_prefix . 'courier_consignments');
+        $courier_select = $courier_active
+            ? "cc.tracking_id as courier_tracking_id, cc.status as courier_status, cc.courier_account_id as courier_account_id"
+            : "NULL as courier_tracking_id, NULL as courier_status, NULL as courier_account_id";
+        $courier_join = $courier_active
+            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.ecomcore_order_id = o.id"
+            : "";
+
         $sql = "
-            SELECT 
+            SELECT
                 o.*,
                 COALESCE(
                     NULLIF(TRIM(CONCAT(con.firstname, ' ', con.lastname)), ''),
@@ -27,14 +38,12 @@ class Ordernotifier_model extends CI_Model
                 COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
-                cc.tracking_id as courier_tracking_id,
-                cc.status as courier_status,
-                cc.courier_account_id as courier_account_id
+                {$courier_select}
             FROM {$db_prefix}ecomcore_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
-            LEFT JOIN {$db_prefix}courier_consignments cc ON cc.ecomcore_order_id = o.id
+            {$courier_join}
             WHERE o.id = ?
         ";
         $order = $this->db->query($sql, [$order_id])->row_array();
@@ -57,7 +66,9 @@ class Ordernotifier_model extends CI_Model
             $this->db->where('id', $order['courier_account_id']);
             $acc = $this->db->get($db_prefix . 'courier_accounts')->row_array();
             if ($acc) {
-                $courier_name = $acc['name'];
+                // The column is `label` — reading `name` here silently produced an
+                // empty {courier_name} in every notification.
+                $courier_name = $acc['label'];
             }
         }
 
