@@ -49,7 +49,7 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                         </h4>
                                         <hr class="hr-panel-heading" />
                                         
-                                        <?= form_open(admin_url('ecomcore/settings'), ['id' => 'credential-form']) ?>
+                                        <?= form_open(admin_url('salesos/settings'), ['id' => 'credential-form']) ?>
                                         <input type="hidden" name="id" id="cred_id">
 
                                         <div class="form-group">
@@ -153,7 +153,7 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                                                             title="Edit">
                                                                         <i class="fa fa-pencil-square-o"></i>
                                                                     </button>
-                                                                    <a href="<?= admin_url('ecomcore/delete_credential/' . $cred['id']) ?>" class="btn btn-danger btn-icon btn-xs _delete" title="Delete">
+                                                                    <a href="<?= admin_url('salesos/delete_credential/' . $cred['id']) ?>" class="btn btn-danger btn-icon btn-xs _delete" title="Delete">
                                                                         <i class="fa fa-trash" style="color:#fff !important;"></i>
                                                                     </a>
                                                                 </td>
@@ -360,7 +360,7 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                         </h4>
                                         <hr class="hr-panel-heading" />
 
-                                        <?= form_open(admin_url('ecomcore/settings'), ['id' => 'notifications-settings-form']) ?>
+                                        <?= form_open(admin_url('salesos/settings'), ['id' => 'notifications-settings-form']) ?>
                                         <input type="hidden" name="notifications_settings" value="1">
 
                                         <div class="row">
@@ -670,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // On switch state toggles
     $('.toggle-credential-status').on('change', function() {
         var id = $(this).data('id');
-        $.get(admin_url + 'ecomcore/toggle_credential_status/' + id, function(res) {
+        $.get(admin_url + 'salesos/toggle_credential_status/' + id, function(res) {
             alert_float('success', 'Status updated successfully.');
         });
     });

@@ -27,8 +27,8 @@
                         ?>
                         <div class="well text-center mbot25">
                             <span class="text-muted text-uppercase display-block mbot5" style="font-size:11px; letter-spacing:1px;">Current Payable Balance</span>
-                            <h3 class="bold text-<?= $label_class ?> no-margin"><?= ecomcore_format_number($current_balance) ?> BDT</h3>
-                            <small class="text-muted display-block mtop5">Opening Balance: <?= ecomcore_format_number($supplier['opening_balance']) ?> BDT</small>
+                            <h3 class="bold text-<?= $label_class ?> no-margin"><?= salesos_format_number($current_balance) ?> BDT</h3>
+                            <small class="text-muted display-block mtop5">Opening Balance: <?= salesos_format_number($supplier['opening_balance']) ?> BDT</small>
                         </div>
 
                         <!-- Record Payment Form -->
@@ -92,12 +92,12 @@
                                                 </td>
                                                 <td>
                                                     <strong class="text-danger">
-                                                        <?= $row['entry_type'] === 'debit' ? '+ ' . ecomcore_format_number($row['amount']) : '-' ?>
+                                                        <?= $row['entry_type'] === 'debit' ? '+ ' . salesos_format_number($row['amount']) : '-' ?>
                                                     </strong>
                                                 </td>
                                                 <td>
                                                     <strong class="text-success">
-                                                        <?= $row['entry_type'] === 'credit' ? '- ' . ecomcore_format_number($row['amount']) : '-' ?>
+                                                        <?= $row['entry_type'] === 'credit' ? '- ' . salesos_format_number($row['amount']) : '-' ?>
                                                     </strong>
                                                 </td>
                                                 <td>

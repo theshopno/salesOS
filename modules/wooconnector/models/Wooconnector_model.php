@@ -12,9 +12,9 @@ class Wooconnector_model extends App_Model
     {
         parent::__construct();
 
-        // Indexed phone-suffix generated column, shared with ecomcore's identical
+        // Indexed phone-suffix generated column, shared with salesos's identical
         // fix — added defensively here too since wooconnector doesn't depend on
-        // ecomcore being installed. See ecomcore/install.php for the full comment.
+        // salesos being installed. See salesos/install.php for the full comment.
         $db_prefix = db_prefix();
         foreach (['leads', 'contacts'] as $table) {
             if (!$this->db->field_exists('phone_suffix10', $db_prefix . $table)) {

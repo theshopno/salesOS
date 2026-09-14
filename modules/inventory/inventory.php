@@ -25,15 +25,15 @@ hooks()->add_action('app_init',   'inventory_load_resources');
 hooks()->add_action('admin_init', 'inventory_register_menu');
 hooks()->add_action('admin_init', 'inventory_register_permissions');
 
-// Listeners for Ecomcore order events
-hooks()->add_action('ecomcore_order_confirmed', 'inventory_handle_order_confirmed');
-hooks()->add_action('ecomcore_order_cancelled', 'inventory_handle_order_cancelled');
-hooks()->add_action('ecomcore_stock_returned',  'inventory_handle_stock_returned');
+// Listeners for Salesos order events
+hooks()->add_action('salesos_order_confirmed', 'inventory_handle_order_confirmed');
+hooks()->add_action('salesos_order_cancelled', 'inventory_handle_order_cancelled');
+hooks()->add_action('salesos_stock_returned',  'inventory_handle_stock_returned');
 
 function inventory_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     $CI->load->model(INVENTORY_MODULE_NAME . '/inventory_model');
 }
 
@@ -55,32 +55,32 @@ function inventory_register_permissions(): void
 function inventory_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     if (!staff_can('view', INVENTORY_MODULE_NAME)) { return; }
 
-    // Add children items under ecomcore parent menu item
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    // Add children items under salesos parent menu item
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'inventory-products', 
         'name'     => 'Products',
         'href'     => admin_url('inventory/products'), 
         'position' => 10,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'inventory-adjustments', 
         'name'     => 'Stock Ledger',
         'href'     => admin_url('inventory/adjustments'), 
         'position' => 11,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'inventory-categories',
         'name'     => 'Categories',
         'href'     => admin_url('inventory/categories'),
         'position' => 12,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'inventory-settings',
         'name'     => 'Inventory Settings',
         'href'     => admin_url('inventory/settings'),
@@ -92,7 +92,7 @@ function inventory_register_menu(): void
 function inventory_handle_order_confirmed($order_id): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; }
+    if (!$CI->app_modules->is_active('salesos')) { return; }
     $CI->load->model('inventory/inventory_model');
     $CI->inventory_model->handle_order_confirmed($order_id);
 }
@@ -100,7 +100,7 @@ function inventory_handle_order_confirmed($order_id): void
 function inventory_handle_order_cancelled($order_id): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; }
+    if (!$CI->app_modules->is_active('salesos')) { return; }
     $CI->load->model('inventory/inventory_model');
     $CI->inventory_model->handle_order_cancelled($order_id);
 }
@@ -108,7 +108,7 @@ function inventory_handle_order_cancelled($order_id): void
 function inventory_handle_stock_returned($order_id): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; }
+    if (!$CI->app_modules->is_active('salesos')) { return; }
     $CI->load->model('inventory/inventory_model');
     $CI->inventory_model->handle_stock_returned($order_id);
 }

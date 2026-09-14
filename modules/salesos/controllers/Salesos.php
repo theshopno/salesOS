@@ -2,32 +2,32 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Ecomcore extends AdminController
+class Salesos extends AdminController
 {
     public function __construct()
     {
         parent::__construct();
-        $this->load->model('ecomcore_model');
-        $this->load->library('ecomcore/ecomcore_encryption');
+        $this->load->model('salesos_model');
+        $this->load->library('salesos/salesos_encryption');
     }
 
     public function index()
     {
-        if (!staff_can('view', 'ecomcore')) {
-            access_denied('Ecomcore Dashboard');
+        if (!staff_can('view', 'salesos')) {
+            access_denied('Salesos Dashboard');
         }
 
         $data['title'] = 'E-commerce Dashboard';
 
         // Fetch stats (excluding test_channel)
         $this->db->where('channel !=', 'test_channel');
-        $data['total_orders'] = $this->db->count_all_results(db_prefix() . 'ecomcore_orders');
+        $data['total_orders'] = $this->db->count_all_results(db_prefix() . 'salesos_orders');
         
         // 1. Total Sales (excluding test_channel)
         $this->db->select_sum('total');
         $this->db->where('status', 'confirmed');
         $this->db->where('channel !=', 'test_channel');
-        $sales_row = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+        $sales_row = $this->db->get(db_prefix() . 'salesos_orders')->row();
         $total_sales = $sales_row ? (float) $sales_row->total : 0.00;
 
         // 2. Total Due (excluding test_channel)
@@ -41,8 +41,8 @@ class Ecomcore extends AdminController
                     ELSE 0 
                 END
             ), 0) as pos_due
-            FROM {$db_prefix}ecomcore_orders o
-            JOIN {$db_prefix}pos_sales s ON s.ecomcore_order_id = o.id
+            FROM {$db_prefix}salesos_orders o
+            JOIN {$db_prefix}pos_sales s ON s.salesos_order_id = o.id
             JOIN {$db_prefix}invoices inv ON inv.id = s.invoice_id
             WHERE o.status = 'confirmed' AND o.channel != 'test_channel'
         ";
@@ -57,7 +57,7 @@ class Ecomcore extends AdminController
         $this->db->where('payment_method', 'pending_payment');
         $this->db->or_where('payment_method', 'cod');
         $this->db->group_end();
-        $other_due_row = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+        $other_due_row = $this->db->get(db_prefix() . 'salesos_orders')->row();
         $other_due = $other_due_row ? (float) $other_due_row->total : 0.00;
 
         $data['total_due']   = $pos_due + $other_due;
@@ -70,7 +70,7 @@ class Ecomcore extends AdminController
         $this->db->where('status', 'confirmed');
         $this->db->where('channel !=', 'test_channel');
         $this->db->group_by('channel');
-        $data['channels'] = $this->db->get(db_prefix() . 'ecomcore_orders')->result_array();
+        $data['channels'] = $this->db->get(db_prefix() . 'salesos_orders')->result_array();
 
         // Recent orders with customer details resolved
         $db_prefix = db_prefix();
@@ -86,7 +86,7 @@ class Ecomcore extends AdminController
                 COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -98,15 +98,15 @@ class Ecomcore extends AdminController
         // Recent events
         $this->db->order_by('created_at', 'desc');
         $this->db->limit(10);
-        $data['recent_events'] = $this->db->get(db_prefix() . 'ecomcore_events')->result_array();
+        $data['recent_events'] = $this->db->get(db_prefix() . 'salesos_events')->result_array();
 
-        $this->load->view('ecomcore/dashboard', $data);
+        $this->load->view('salesos/dashboard', $data);
     }
 
     public function settings()
     {
-        if (!staff_can('settings', 'ecomcore')) {
-            access_denied('Ecomcore Settings');
+        if (!staff_can('settings', 'salesos')) {
+            access_denied('Salesos Settings');
         }
 
         $data['title'] = 'E-commerce Settings';
@@ -136,7 +136,7 @@ class Ecomcore extends AdminController
                     update_option($opt, $val);
                 }
                 set_alert('success', 'Notification settings updated successfully.');
-                redirect(admin_url('ecomcore/settings?tab=notifications'));
+                redirect(admin_url('salesos/settings?tab=notifications'));
             }
 
             $id = $this->input->post('id');
@@ -146,7 +146,7 @@ class Ecomcore extends AdminController
             $is_active = $this->input->post('is_active') ? 1 : 0;
             
             $payload_raw = $this->input->post('payload');
-            $payload_enc = $this->ecomcore_encryption->encrypt($payload_raw);
+            $payload_enc = $this->salesos_encryption->encrypt($payload_raw);
 
             $db_data = [
                 'owner_module' => $owner_module,
@@ -158,21 +158,21 @@ class Ecomcore extends AdminController
 
             if ($id) {
                 $this->db->where('id', $id);
-                $this->db->update(db_prefix() . 'ecomcore_credentials', $db_data);
+                $this->db->update(db_prefix() . 'salesos_credentials', $db_data);
                 set_alert('success', 'Credential updated successfully.');
             } else {
                 $db_data['created_at'] = date('Y-m-d H:i:s');
-                $this->db->insert(db_prefix() . 'ecomcore_credentials', $db_data);
+                $this->db->insert(db_prefix() . 'salesos_credentials', $db_data);
                 set_alert('success', 'Credential added successfully.');
             }
 
-            redirect(admin_url('ecomcore/settings?tab=channels'));
+            redirect(admin_url('salesos/settings?tab=channels'));
         }
 
-        $credentials = $this->db->get(db_prefix() . 'ecomcore_credentials')->result_array();
+        $credentials = $this->db->get(db_prefix() . 'salesos_credentials')->result_array();
         
         foreach ($credentials as &$cred) {
-            $cred['payload_decrypted'] = $this->ecomcore_encryption->decrypt($cred['payload'], true);
+            $cred['payload_decrypted'] = $this->salesos_encryption->decrypt($cred['payload'], true);
         }
 
         $data['credentials'] = $credentials;
@@ -185,33 +185,33 @@ class Ecomcore extends AdminController
             $data['courier_accounts'] = $this->courier_model->get_accounts();
         }
 
-        $this->load->view('ecomcore/settings', $data);
+        $this->load->view('salesos/settings', $data);
     }
 
     public function delete_credential($id)
     {
-        if (!staff_can('settings', 'ecomcore')) {
-            access_denied('Ecomcore Settings');
+        if (!staff_can('settings', 'salesos')) {
+            access_denied('Salesos Settings');
         }
 
         $this->db->where('id', $id);
-        $this->db->delete(db_prefix() . 'ecomcore_credentials');
+        $this->db->delete(db_prefix() . 'salesos_credentials');
         set_alert('success', 'Credential deleted successfully.');
-        redirect(admin_url('ecomcore/settings?tab=channels'));
+        redirect(admin_url('salesos/settings?tab=channels'));
     }
 
     public function toggle_credential_status($id)
     {
-        if (!staff_can('settings', 'ecomcore')) {
-            access_denied('Ecomcore Settings');
+        if (!staff_can('settings', 'salesos')) {
+            access_denied('Salesos Settings');
         }
 
         $this->db->where('id', $id);
-        $cred = $this->db->get(db_prefix() . 'ecomcore_credentials')->row();
+        $cred = $this->db->get(db_prefix() . 'salesos_credentials')->row();
         if ($cred) {
             $new_status = $cred->is_active ? 0 : 1;
             $this->db->where('id', $id);
-            $this->db->update(db_prefix() . 'ecomcore_credentials', ['is_active' => $new_status]);
+            $this->db->update(db_prefix() . 'salesos_credentials', ['is_active' => $new_status]);
             echo json_encode(['success' => true, 'is_active' => $new_status]);
         } else {
             echo json_encode(['success' => false]);
@@ -224,7 +224,7 @@ class Ecomcore extends AdminController
      */
     public function get_order_details_ajax($id)
     {
-        if (!staff_can('view', 'ecomcore')) {
+        if (!staff_can('view', 'salesos')) {
             echo json_encode(['success' => false, 'error' => 'Permission denied.']);
             exit;
         }
@@ -239,7 +239,7 @@ class Ecomcore extends AdminController
             ? "cc.id as consignment_id, cc.tracking_id as courier_tracking_id, cc.status as courier_status, cc.last_synced_at as courier_last_synced_at, ca.label as courier_account_name, ca.provider as courier_provider"
             : "NULL as consignment_id, NULL as courier_tracking_id, NULL as courier_status, NULL as courier_last_synced_at, NULL as courier_account_name, NULL as courier_provider";
         $courier_join = $courier_active
-            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.ecomcore_order_id = o.id
+            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id
                LEFT JOIN {$db_prefix}courier_accounts ca ON ca.id = cc.courier_account_id"
             : "";
 
@@ -256,7 +256,7 @@ class Ecomcore extends AdminController
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
                 {$courier_select}
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -272,7 +272,7 @@ class Ecomcore extends AdminController
         }
 
         $this->db->where('order_id', $id);
-        $items = $this->db->get($db_prefix . 'ecomcore_order_items')->result_array();
+        $items = $this->db->get($db_prefix . 'salesos_order_items')->result_array();
 
         // Retrieve fraud check lookup details if available. fraudcheck_lookups.phone
         // is stored in fraudcheck's own normalized format (11 digits, 0XXXXXXXXXX) —
@@ -303,8 +303,8 @@ class Ecomcore extends AdminController
      */
     public function orders()
     {
-        if (!staff_can('view', 'ecomcore')) {
-            access_denied('Ecomcore Orders');
+        if (!staff_can('view', 'salesos')) {
+            access_denied('Salesos Orders');
         }
 
         $db_prefix = db_prefix();
@@ -347,7 +347,7 @@ class Ecomcore extends AdminController
         // Count total rows
         $count_sql = "
             SELECT COUNT(*) as count
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -359,7 +359,7 @@ class Ecomcore extends AdminController
         $limit = 20;
         $offset = (int) $this->input->get('page') ?: 0;
 
-        $config['base_url']             = admin_url('ecomcore/orders');
+        $config['base_url']             = admin_url('salesos/orders');
         $config['total_rows']           = $total_rows;
         $config['per_page']             = $limit;
         $config['page_query_string']    = TRUE;
@@ -401,7 +401,7 @@ class Ecomcore extends AdminController
             ? "cc.id as consignment_id, cc.tracking_id as courier_tracking_id, cc.status as courier_status"
             : "NULL as consignment_id, NULL as courier_tracking_id, NULL as courier_status";
         $courier_join = $courier_active
-            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.ecomcore_order_id = o.id"
+            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id"
             : "";
 
         $sql = "
@@ -417,7 +417,7 @@ class Ecomcore extends AdminController
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
                 {$courier_select}
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -474,7 +474,7 @@ class Ecomcore extends AdminController
         $data['orders'] = $orders;
 
         $data['title'] = 'All E-commerce Orders';
-        $this->load->view('ecomcore/orders', $data);
+        $this->load->view('salesos/orders', $data);
     }
 
     /**
@@ -482,7 +482,7 @@ class Ecomcore extends AdminController
      */
     public function fraudcheck_recheck_ajax($phone)
     {
-        if (!staff_can('settings', 'ecomcore')) {
+        if (!staff_can('settings', 'salesos')) {
             echo json_encode(['success' => false, 'error' => 'Permission denied.']);
             exit;
         }
@@ -506,7 +506,7 @@ class Ecomcore extends AdminController
 
     public function print_invoice($id)
     {
-        if (!staff_can('view', 'ecomcore')) {
+        if (!staff_can('view', 'salesos')) {
             access_denied('Print Invoice');
         }
 
@@ -523,7 +523,7 @@ class Ecomcore extends AdminController
                 COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -537,17 +537,17 @@ class Ecomcore extends AdminController
         }
 
         $this->db->where('order_id', $id);
-        $items = $this->db->get($db_prefix . 'ecomcore_order_items')->result_array();
+        $items = $this->db->get($db_prefix . 'salesos_order_items')->result_array();
 
         $data['order'] = $order;
         $data['items'] = $items;
 
-        $this->load->view('ecomcore/print_invoice', $data);
+        $this->load->view('salesos/print_invoice', $data);
     }
 
     public function print_label($id)
     {
-        if (!staff_can('view', 'ecomcore')) {
+        if (!staff_can('view', 'salesos')) {
             access_denied('Print Label');
         }
 
@@ -564,7 +564,7 @@ class Ecomcore extends AdminController
                 COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
@@ -578,11 +578,11 @@ class Ecomcore extends AdminController
         }
 
         $this->db->where('order_id', $id);
-        $items = $this->db->get($db_prefix . 'ecomcore_order_items')->result_array();
+        $items = $this->db->get($db_prefix . 'salesos_order_items')->result_array();
 
         $data['order'] = $order;
         $data['items'] = $items;
 
-        $this->load->view('ecomcore/print_label', $data);
+        $this->load->view('salesos/print_label', $data);
     }
 }

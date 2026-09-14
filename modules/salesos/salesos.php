@@ -9,32 +9,32 @@ Version: 1.0.0
 Requires at least: 2.3.4
 */
 
-define('ECOMCORE_MODULE_NAME', 'ecomcore');
-define('ECOMCORE_VERSION',     '1.0.0');
+define('SALESOS_MODULE_NAME', 'salesos');
+define('SALESOS_VERSION',     '1.0.0');
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
-register_activation_hook(ECOMCORE_MODULE_NAME, 'ecomcore_activation_hook');
-function ecomcore_activation_hook(): void
+register_activation_hook(SALESOS_MODULE_NAME, 'salesos_activation_hook');
+function salesos_activation_hook(): void
 {
     $CI = &get_instance();
     require(__DIR__ . '/install.php');
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-hooks()->add_action('app_init',   'ecomcore_load_resources');
-hooks()->add_action('admin_init', 'ecomcore_register_menu');
-hooks()->add_action('admin_init', 'ecomcore_register_permissions');
+hooks()->add_action('app_init',   'salesos_load_resources');
+hooks()->add_action('admin_init', 'salesos_register_menu');
+hooks()->add_action('admin_init', 'salesos_register_permissions');
 
-function ecomcore_load_resources(): void
+function salesos_load_resources(): void
 {
     $CI = &get_instance();
-    $CI->load->model(ECOMCORE_MODULE_NAME . '/ecomcore_model');
+    $CI->load->model(SALESOS_MODULE_NAME . '/salesos_model');
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────────
-function ecomcore_register_permissions(): void
+function salesos_register_permissions(): void
 {
-    register_staff_capabilities('ecomcore', [
+    register_staff_capabilities('salesos', [
         'capabilities' => [
             'view'     => 'View E-commerce Dashboard',
             'settings' => 'Manage Channels & Credentials',
@@ -43,37 +43,37 @@ function ecomcore_register_permissions(): void
 }
 
 // ── Menu ─────────────────────────────────────────────────────────────────────
-function ecomcore_register_menu(): void
+function salesos_register_menu(): void
 {
-    if (!staff_can('view', ECOMCORE_MODULE_NAME) && !staff_can('settings', ECOMCORE_MODULE_NAME)) { return; }
+    if (!staff_can('view', SALESOS_MODULE_NAME) && !staff_can('settings', SALESOS_MODULE_NAME)) { return; }
     $CI = &get_instance();
 
-    $CI->app_menu->add_sidebar_menu_item(ECOMCORE_MODULE_NAME, [
+    $CI->app_menu->add_sidebar_menu_item(SALESOS_MODULE_NAME, [
         'name'     => 'E-commerce', 
         'icon'     => 'fa fa-shopping-cart', 
         'position' => 30,
     ]);
     
-    if (staff_can('view', ECOMCORE_MODULE_NAME)) {
-        $CI->app_menu->add_sidebar_children_item(ECOMCORE_MODULE_NAME, [
-            'slug'     => 'ecomcore-dashboard', 
+    if (staff_can('view', SALESOS_MODULE_NAME)) {
+        $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
+            'slug'     => 'salesos-dashboard', 
             'name'     => 'Dashboard',
-            'href'     => admin_url('ecomcore'), 
+            'href'     => admin_url('salesos'), 
             'position' => 1,
         ]);
-        $CI->app_menu->add_sidebar_children_item(ECOMCORE_MODULE_NAME, [
-            'slug'     => 'ecomcore-orders', 
+        $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
+            'slug'     => 'salesos-orders', 
             'name'     => 'Orders',
-            'href'     => admin_url('ecomcore/orders'), 
+            'href'     => admin_url('salesos/orders'), 
             'position' => 1.5,
         ]);
     }
 
-    if (staff_can('settings', ECOMCORE_MODULE_NAME)) {
-        $CI->app_menu->add_sidebar_children_item(ECOMCORE_MODULE_NAME, [
-            'slug'     => 'ecomcore-settings', 
+    if (staff_can('settings', SALESOS_MODULE_NAME)) {
+        $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
+            'slug'     => 'salesos-settings', 
             'name'     => 'Settings',
-            'href'     => admin_url('ecomcore/settings'), 
+            'href'     => admin_url('salesos/settings'), 
             'position' => 2,
         ]);
     }
@@ -83,7 +83,7 @@ function ecomcore_register_menu(): void
  * Format e-commerce price or numbers dynamically based on system setting:
  * remove_decimals_on_zero (Remove decimals on numbers/money with zero decimals).
  */
-function ecomcore_format_number($number, $decimals = null)
+function salesos_format_number($number, $decimals = null)
 {
     if (!is_numeric($number)) {
         return $number;

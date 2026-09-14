@@ -28,11 +28,11 @@ if (!$CI->db->table_exists($db_prefix . 'wcsync_orders')) {
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `site_id` INT(11) NOT NULL,
         `wc_order_id` INT(11) NOT NULL,
-        `ecomcore_order_id` INT(11) NOT NULL,
+        `salesos_order_id` INT(11) NOT NULL,
         `wc_status` VARCHAR(50) DEFAULT 'pending',
         `synced_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
         UNIQUE KEY `site_order` (`site_id`, `wc_order_id`),
-        KEY `ecomcore_order_id` (`ecomcore_order_id`)
+        KEY `salesos_order_id` (`salesos_order_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }

@@ -5,176 +5,179 @@
     <div class="content">
         <div class="row">
             <div class="col-md-12">
-                <div class="panel_s">
-                    <div class="panel-body">
-                        
-                        <!-- Header -->
-                        <div class="row mbot20">
-                            <div class="col-md-6">
-                                <h4 class="no-margin bold font-medium text-primary"><i class="fa fa-list"></i> E-commerce Synced Orders</h4>
-                                <span class="text-muted">Browse, search, and manage all synced orders from WooCommerce, POS, and other channels.</span>
-                            </div>
-                            <div class="col-md-6 text-right">
-                                <?php if (staff_can('settings', 'ecomcore')): ?>
-                                    <a href="<?= admin_url('ecomcore/integrations') ?>" class="btn btn-default">
-                                        <i class="fa fa-cogs"></i> Integrations
-                                    </a>
-                                <?php endif; ?>
-                                <a href="<?= admin_url('ecomcore') ?>" class="btn btn-primary">
-                                    <i class="fa fa-dashboard"></i> Dashboard
+                <!-- Header -->
+                <div class="row">
+                    <div class="col-md-12 mbot20">
+                        <div class="pull-right">
+                            <?php if (staff_can('settings', 'salesos')): ?>
+                                <a href="<?= admin_url('salesos/integrations') ?>" class="btn btn-primary">
+                                    <i class="fa fa-cogs"></i> Manage Integrations
                                 </a>
-                            </div>
+                            <?php endif; ?>
                         </div>
-                        <hr class="hr-panel-separator" />
-
-                        <!-- Filters Section -->
-                        <?= form_open(admin_url('ecomcore/orders'), ['method' => 'get', 'id' => 'orders-filter-form']) ?>
-                        <div class="row mbot20" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px 15px 5px 15px; margin: 0 0 20px 0;">
-                            
-                            <!-- Search -->
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="search" class="control-label">Search Order</label>
-                                    <input type="text" name="search" id="search" class="form-control" placeholder="Search ID, customer name, phone, Ref ID..." value="<?= e($search ?? '') ?>">
-                                </div>
-                            </div>
-
-                            <!-- Channel -->
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="channel" class="control-label">Channel</label>
-                                    <select name="channel" id="channel" class="form-control">
-                                        <option value="">All Channels</option>
-                                        <option value="woo" <?= (isset($selected_channel) && $selected_channel === 'woo') ? 'selected' : '' ?>>WooCommerce (WOO)</option>
-                                        <option value="pos" <?= (isset($selected_channel) && $selected_channel === 'pos') ? 'selected' : '' ?>>Point of Sale (POS)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Status -->
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="status" class="control-label">Status</label>
-                                    <select name="status" id="status" class="form-control">
-                                        <option value="">All Statuses</option>
-                                        <option value="pending" <?= (isset($selected_status) && $selected_status === 'pending') ? 'selected' : '' ?>>Pending</option>
-                                        <option value="confirmed" <?= (isset($selected_status) && $selected_status === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
-                                        <option value="cancelled" <?= (isset($selected_status) && $selected_status === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="col-md-2" style="margin-top: 25px;">
-                                <button type="submit" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Filter</button>
-                                <a href="<?= admin_url('ecomcore/orders') ?>" class="btn btn-default btn-block" style="margin-top: 5px;">Reset</a>
-                            </div>
-
-                        </div>
-                        <?= form_close() ?>
-
-                        <!-- Orders Table -->
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped no-mtop">
-                                <thead>
-                                    <tr>
-                                        <th>Order ID</th>
-                                        <th>Customer</th>
-                                        <th>Channel</th>
-                                        <th>Reference ID</th>
-                                        <th>Total Amount (BDT)</th>
-                                        <th>Status</th>
-                                        <th>Order Date</th>
-                                        <th class="text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($orders)): ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center text-muted">No orders found matching the filter criteria.</td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($orders as $order): ?>
-                                            <tr>
-                                                <td class="bold">#<?= $order['id'] ?></td>
-                                                 <td>
-                                                     <strong class="display-block"><?= e($order['customer_name']) ?></strong>
-                                                     <small class="text-muted"><?= e($order['customer_phone'] ?: 'No Phone') ?></small>
-                                                     <?php if (!empty($order['fraud_risk_level'])): ?>
-                                                         <span class="label display-block mtop5 inline-block text-uppercase text-center" 
-                                                               style="font-size: 8px; padding: 1px 4px; font-weight: normal; background-color: <?= e($order['fraud_risk_color']) ?>; color: white;" 
-                                                               title="BDCourier Success Ratio: <?= e($order['fraud_success_ratio']) ?>%">
-                                                              <?php
-                                                              $raw_risk = $order['fraud_risk_level'];
-                                                              $risk_norm = strtoupper(str_replace('_', ' ', $raw_risk));
-                                                              if ($risk_norm === 'HIGH RISK' || $risk_norm === 'RED') {
-                                                                  $risk_lbl = 'High Risk';
-                                                              } elseif ($risk_norm === 'MEDIUM RISK' || $risk_norm === 'YELLOW' || $risk_norm === 'ORANGE') {
-                                                                  $risk_lbl = 'Medium Risk';
-                                                              } elseif ($risk_norm === 'NO RISK' || $risk_norm === 'SAFE' || $risk_norm === 'GREEN') {
-                                                                  $risk_lbl = 'No Risk';
-                                                              } else {
-                                                                  $risk_lbl = ucwords(strtolower(str_replace('_', ' ', $raw_risk)));
-                                                              }
-                                                              echo e($risk_lbl);
-                                                              ?> (<?= e(round((float)$order['fraud_success_ratio'])) ?>%)
-                                                         </span>
-                                                     <?php endif; ?>
-                                                 </td>
-                                                <td>
-                                                    <span class="label label-default">
-                                                        <?= strtoupper(e($order['channel'])) ?>
-                                                    </span>
-                                                </td>
-                                                <td><?= e($order['channel_ref_id'] ?: '-') ?></td>
-                                                <td><span class="text-semibold text-dark"><?= ecomcore_format_number($order['total']) ?> BDT</span></td>
-                                                <td>
-                                                    <?php 
-                                                        $status_class = 'info';
-                                                        if ($order['status'] === 'confirmed') $status_class = 'success';
-                                                        if ($order['status'] === 'cancelled') $status_class = 'danger';
-                                                    ?>
-                                                    <span class="label label-<?= $status_class ?>">
-                                                        <?= strtoupper(e($order['status'])) ?>
-                                                    </span>
-                                                </td>
-                                                <td><?= e($order['order_date']) ?></td>
-                                                <td class="text-center" style="white-space: nowrap;">
-                                                    <button class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Details">
-                                                        <i class="fa fa-eye"></i> View
-                                                    </button>
-                                                    <?php if (empty($order['consignment_id'])): ?>
-                                                        <button class="btn btn-success btn-xs open-courier-selection-btn" 
-                                                                data-order-id="<?= $order['id'] ?>" 
-                                                                data-customer-name="<?= e($order['customer_name']) ?>"
-                                                                data-customer-phone="<?= e($order['customer_phone']) ?>"
-                                                                data-customer-address="<?= e($order['customer_address'] ?? '') ?>"
-                                                                data-order-total="<?= (float) $order['total'] ?>"
-                                                                data-order-channel="<?= e($order['channel']) ?>"
-                                                                data-order-note="<?= e($order['order_note'] ?? '') ?>"
-                                                                title="Send with Courier">
-                                                            <i class="fa fa-truck"></i> Send Courier
-                                                        </button>
-                                                    <?php else: ?>
-                                                        <span class="label label-info mleft5" style="display: inline-block; padding: 4px 6px;"><i class="fa fa-check"></i> Booked</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div class="row mtop15">
-                            <div class="col-md-12 text-right">
-                                <?= $pagination ?>
-                            </div>
-                        </div>
-
+                        <h4 class="no-margin bold font-medium text-primary">E-commerce Suite Dashboard</h4>
+                        <span class="text-muted">Master control panel for salesos family modules.</span>
                     </div>
                 </div>
+
+                <!-- Stats Grid (Modern Flexbox Style) -->
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <div class="panel_s" style="margin-bottom: 0;">
+                            <div class="panel-body text-center">
+                                <h3 class="bold no-margin text-success"><?= salesos_format_number($total_sales) ?> BDT</h3>
+                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Sales</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div class="panel_s" style="margin-bottom: 0;">
+                            <div class="panel-body text-center">
+                                <h3 class="bold no-margin" style="color: #6366f1;"><?= salesos_format_number($total_revenue) ?> BDT</h3>
+                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Revenue</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div class="panel_s" style="margin-bottom: 0;">
+                            <div class="panel-body text-center">
+                                <h3 class="bold no-margin text-danger"><?= salesos_format_number($total_due) ?> BDT</h3>
+                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Due</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div class="panel_s" style="margin-bottom: 0;">
+                            <div class="panel-body text-center">
+                                <h3 class="bold no-margin text-primary"><?= (int) $total_orders ?></h3>
+                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Orders</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div class="panel_s" style="margin-bottom: 0;">
+                            <div class="panel-body text-center">
+                                <h3 class="bold no-margin text-info"><?= count($channels) ?></h3>
+                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Active Channels</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Row -->
+                <div class="row">
+                    <!-- Recent Orders -->
+                    <div class="col-md-8">
+                        <div class="panel_s">
+                            <div class="panel-body">
+                                <h4 class="no-margin font-medium"><i class="fa fa-shopping-cart"></i> Recent Orders</h4>
+                                <hr class="hr-panel-heading" />
+                                
+                                <?php if (empty($recent_orders)): ?>
+                                    <p class="text-muted no-margin">No orders imported yet.</p>
+                                <?php else: ?>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped no-mtop">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Customer</th>
+                                                    <th>Channel</th>
+                                                    <th>Ref ID</th>
+                                                    <th>Total (BDT)</th>
+                                                    <th>Status</th>
+                                                    <th>Order Date</th>
+                                                    <th class="text-center">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($recent_orders as $order): ?>
+                                                    <tr>
+                                                        <td><?= $order['id'] ?></td>
+                                                        <td>
+                                                            <strong class="display-block"><?= e($order['customer_name']) ?></strong>
+                                                            <small class="text-muted"><?= e($order['customer_phone'] ?: 'No Phone') ?></small>
+                                                        </td>
+                                                        <td>
+                                                            <span class="label label-default">
+                                                                <?= strtoupper(e($order['channel'])) ?>
+                                                            </span>
+                                                        </td>
+                                                        <td><?= e($order['channel_ref_id'] ?: '-') ?></td>
+                                                        <td><strong><?= salesos_format_number($order['total']) ?></strong></td>
+                                                        <td>
+                                                            <?php 
+                                                                $status_class = 'info';
+                                                                if ($order['status'] === 'confirmed') $status_class = 'success';
+                                                                if ($order['status'] === 'cancelled') $status_class = 'danger';
+                                                            ?>
+                                                            <span class="label label-<?= $status_class ?>">
+                                                                <?= strtoupper(e($order['status'])) ?>
+                                                            </span>
+                                                        </td>
+                                                        <td><?= e($order['order_date']) ?></td>
+                                                        <td class="text-center">
+                                                            <button class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Details">
+                                                                <i class="fa fa-eye"></i> View
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Channel breakdown & Events -->
+                    <div class="col-md-4">
+                        <div class="panel_s mbot20">
+                            <div class="panel-body">
+                                <h4 class="no-margin font-medium"><i class="fa fa-pie-chart"></i> Channel Breakdown</h4>
+                                <hr class="hr-panel-heading" />
+                                
+                                <?php if (empty($channels)): ?>
+                                    <p class="text-muted text-center no-margin">No channel statistics available.</p>
+                                <?php else: ?>
+                                    <ul class="list-group no-margin">
+                                        <?php foreach ($channels as $ch): ?>
+                                            <li class="list-group-item">
+                                                <span class="badge"><?= (int) $ch['count'] ?> orders (<?= salesos_format_number($ch['revenue']) ?> BDT)</span>
+                                                <span class="bold"><?= strtoupper(e($ch['channel'])) ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div class="panel_s">
+                            <div class="panel-body">
+                                <h4 class="no-margin font-medium"><i class="fa fa-history"></i> Recent Activity Logs</h4>
+                                <hr class="hr-panel-heading" />
+                                
+                                <?php if (empty($recent_events)): ?>
+                                    <p class="text-muted no-margin">No integration events logged yet.</p>
+                                <?php else: ?>
+                                    <div class="activity-feed">
+                                        <?php foreach ($recent_events as $event): ?>
+                                            <div class="feed-item">
+                                                <div class="date"><?= e($event['created_at']) ?></div>
+                                                <div class="text">
+                                                    <strong><?= e($event['event_type']) ?></strong>
+                                                    &mdash; Entity ID: <?= e($event['entity_id']) ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -401,10 +404,10 @@
 <?php init_tail(); ?>
 
 <script>
-window.ecomcore_remove_decimals_on_zero = '<?= get_option('remove_decimals_on_zero') ?: '0' ?>';
-function ecomcore_format_number(number, decimals) {
+window.salesos_remove_decimals_on_zero = '<?= get_option('remove_decimals_on_zero') ?: '0' ?>';
+function salesos_format_number(number, decimals) {
     if (decimals === undefined) decimals = 2;
-    if (window.ecomcore_remove_decimals_on_zero == '1') {
+    if (window.salesos_remove_decimals_on_zero == '1') {
         if (Number(number) === Math.floor(Number(number))) {
             decimals = 0;
         }
@@ -418,13 +421,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Open empty modal first
         $('#modal-order-id').text(orderId);
-        $('#modal-print-invoice-btn').attr('href', admin_url + 'ecomcore/print_invoice/' + orderId);
-        $('#modal-print-label-btn').attr('href', admin_url + 'ecomcore/print_label/' + orderId);
+        $('#modal-print-invoice-btn').attr('href', admin_url + 'salesos/print_invoice/' + orderId);
+        $('#modal-print-label-btn').attr('href', admin_url + 'salesos/print_label/' + orderId);
         $('#modal-items-tbody').html('<tr><td colspan="5" class="text-center text-muted"><i class="fa fa-spinner fa-spin"></i> Loading order details...</td></tr>');
         $('#order_details_modal').modal('show');
 
         // Fetch via AJAX
-        $.getJSON(admin_url + 'ecomcore/get_order_details_ajax/' + orderId, function(res) {
+        $.getJSON(admin_url + 'salesos/get_order_details_ajax/' + orderId, function(res) {
             if (res.success) {
                 var o = res.order;
                 
@@ -477,8 +480,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         itemsHtml += '<td>' + (item.name || 'Product Item') + '</td>';
                         itemsHtml += '<td><code>' + (item.sku || '-') + '</code></td>';
                         itemsHtml += '<td class="text-center">' + parseFloat(item.qty) + '</td>';
-                        itemsHtml += '<td class="text-right">' + ecomcore_format_number(item.unit_price, 2) + ' BDT</td>';
-                        itemsHtml += '<td class="text-right"><strong>' + ecomcore_format_number(itemTotal, 2) + ' BDT</strong></td>';
+                        itemsHtml += '<td class="text-right">' + salesos_format_number(item.unit_price, 2) + ' BDT</td>';
+                        itemsHtml += '<td class="text-right"><strong>' + salesos_format_number(itemTotal, 2) + ' BDT</strong></td>';
                         itemsHtml += '</tr>';
                     });
                 } else {
@@ -492,180 +495,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 var shipping = parseFloat(o.shipping_charge);
                 var total = parseFloat(o.total);
 
-                $('#modal-subtotal').text(ecomcore_format_number(subtotal, 2));
-                $('#modal-shipping').text(ecomcore_format_number(shipping, 2));
-                $('#modal-total').text(ecomcore_format_number(total, 2));
+                $('#modal-subtotal').text(salesos_format_number(subtotal, 2));
+                $('#modal-shipping').text(salesos_format_number(shipping, 2));
+                $('#modal-total').text(salesos_format_number(total, 2));
 
             } else {
                 $('#modal-items-tbody').html('<tr><td colspan="5" class="text-center text-danger"><i class="fa fa-exclamation-triangle"></i> ' + (res.error || 'Failed to load details.') + '</td></tr>');
-            }
-        });
-    });
-
-    // Courier selection click to open inline booking modal
-    $('.open-courier-selection-btn').on('click', function() {
-        var orderId = $(this).data('order-id');
-        var custName = $(this).data('customer-name');
-        var custPhone = $(this).data('customer-phone');
-        var custAddress = $(this).data('customer-address');
-        var orderTotal = $(this).data('order-total');
-        var channel = $(this).data('order-channel');
-        var orderNote = $(this).data('order-note');
-
-        // Set form hidden inputs & text labels
-        $('#booking-order-id-label').text(orderId);
-        $('#booking-ecomcore-order-id').val(orderId);
-        
-        $('#booking-rec-name').text(custName || 'Guest Customer');
-        $('#booking-rec-phone').text(custPhone || '-');
-        $('#booking-rec-address').text(custAddress || '-');
-
-        // Note pre-fill
-        $('#booking-notes').val(orderNote || '');
-
-        // COD Amount defaults
-        if (channel === 'pos') {
-            $('#booking-cod-amount').val('0.00');
-        } else {
-            $('#booking-cod-amount').val(ecomcore_format_number(orderTotal, 2));
-        }
-
-        // Reset state to selection view
-        $('#booking-state-form').hide();
-        $('#booking-state-selection').show();
-
-        // Open modal
-        $('#courier_booking_modal').modal('show');
-    });
-
-    // Account Card selection transitions to form state
-    $('.select-courier-account-card').on('click', function(e) {
-        e.preventDefault();
-        var accountId = $(this).data('account-id');
-        var provider = $(this).data('provider');
-        var name = $(this).data('account-name');
-
-        $('#booking-courier-account-id').val(accountId);
-        $('#booking-selected-account-label').text(name + ' (' + provider.toUpperCase() + ')');
-
-        if (provider === 'pathao') {
-            $('#booking-pathao-fields').show();
-            $('#booking-recipient-city').attr('required', 'required');
-            $('#booking-recipient-zone').attr('required', 'required');
-            $('#booking-recipient-area').attr('required', 'required');
-            fetchModalCities(accountId);
-        } else {
-            $('#booking-pathao-fields').hide();
-            $('#booking-recipient-city').removeAttr('required');
-            $('#booking-recipient-zone').removeAttr('required');
-            $('#booking-recipient-area').removeAttr('required');
-        }
-
-        // Transition views
-        $('#booking-state-selection').fadeOut(150, function() {
-            $('#booking-state-form').fadeIn(150);
-        });
-    });
-
-    // Back to selection button
-    $('#booking-back-to-selection').on('click', function() {
-        $('#booking-state-form').fadeOut(150, function() {
-            $('#booking-state-selection').fadeIn(150);
-        });
-    });
-
-    // Pathao dynamic lookups
-    function fetchModalCities(account_id) {
-        var citySelect = $('#booking-recipient-city');
-        var zoneSelect = $('#booking-recipient-zone');
-        var areaSelect = $('#booking-recipient-area');
-
-        citySelect.html('<option value="">Loading Cities...</option>');
-        zoneSelect.html('<option value="">Select Zone...</option>').prop('disabled', true);
-        areaSelect.html('<option value="">Select Area...</option>').prop('disabled', true);
-
-        $.getJSON(admin_url + 'courier/get_pathao_cities/' + account_id, function(data) {
-            var html = '<option value="">Select City...</option>';
-            if (Array.isArray(data)) {
-                data.forEach(function(c) {
-                    html += '<option value="' + c.city_id + '">' + c.city_name + '</option>';
-                });
-            }
-            citySelect.html(html);
-        });
-    }
-
-    $('#booking-recipient-city').on('change', function() {
-        var account_id = $('#booking-courier-account-id').val();
-        var city_id = this.value;
-        var zoneSelect = $('#booking-recipient-zone');
-        var areaSelect = $('#booking-recipient-area');
-
-        zoneSelect.html('<option value="">Loading Zones...</option>').prop('disabled', true);
-        areaSelect.html('<option value="">Select Area...</option>').prop('disabled', true);
-
-        if (!city_id) return;
-
-        $.getJSON(admin_url + 'courier/get_pathao_zones/' + account_id + '/' + city_id, function(data) {
-            var html = '<option value="">Select Zone...</option>';
-            if (Array.isArray(data)) {
-                data.forEach(function(z) {
-                    html += '<option value="' + z.zone_id + '">' + z.zone_name + '</option>';
-                });
-            }
-            zoneSelect.html(html).prop('disabled', false);
-        });
-    });
-
-    $('#booking-recipient-zone').on('change', function() {
-        var account_id = $('#booking-courier-account-id').val();
-        var zone_id = this.value;
-        var areaSelect = $('#booking-recipient-area');
-
-        areaSelect.html('<option value="">Loading Areas...</option>').prop('disabled', true);
-
-        if (!zone_id) return;
-
-        $.getJSON(admin_url + 'courier/get_pathao_areas/' + account_id + '/' + zone_id, function(data) {
-            var html = '<option value="">Select Area...</option>';
-            if (Array.isArray(data)) {
-                data.forEach(function(a) {
-                    html += '<option value="' + a.area_id + '">' + a.area_name + '</option>';
-                });
-            }
-            areaSelect.html(html).prop('disabled', false);
-        });
-    });
-
-    // Inline form submit via AJAX
-    $('#inline-courier-booking-form').on('submit', function(e) {
-        e.preventDefault();
-        var form = $(this);
-        var submitBtn = form.find('button[type="submit"]');
-        var originalBtnHtml = submitBtn.html();
-
-        submitBtn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Booking...');
-
-        $.ajax({
-            url: admin_url + 'courier/book_ajax',
-            type: 'POST',
-            data: form.serialize(),
-            dataType: 'json',
-            success: function(res) {
-                if (res.success) {
-                    alert_float('success', res.message || 'Parcel booked successfully!');
-                    $('#courier_booking_modal').modal('hide');
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    alert_float('danger', res.error || 'Failed to book parcel.');
-                    submitBtn.prop('disabled', false).html(originalBtnHtml);
-                }
-            },
-            error: function() {
-                alert_float('danger', 'An unexpected error occurred during booking.');
-                submitBtn.prop('disabled', false).html(originalBtnHtml);
             }
         });
     });
@@ -903,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Checking...');
 
-        $.getJSON(admin_url + 'ecomcore/fraudcheck_recheck_ajax/' + phone, function(res) {
+        $.getJSON(admin_url + 'salesos/fraudcheck_recheck_ajax/' + phone, function(res) {
             if (res.success) {
                 alert_float('success', 'Customer fraud history updated successfully!');
                 populateFraudData(res.fraud_data, phone);
@@ -919,190 +754,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- Inline Courier Booking Modal -->
-<div class="modal fade" id="courier_booking_modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title bold text-primary"><i class="fa fa-truck"></i> Send to Courier - Order #<span id="booking-order-id-label"></span></h4>
-            </div>
-            
-            <!-- STATE 1: SELECTION VIEW -->
-            <div id="booking-state-selection" style="background: #f8fafc; padding: 20px;">
-                <?php if (empty($courier_accounts)): ?>
-                    <div class="alert alert-warning no-margin text-center">
-                        <p class="bold"><i class="fa fa-exclamation-triangle"></i> No Courier Accounts Configured</p>
-                        <p class="no-margin mtop5 text-muted">Please configure a courier account first in order to book parcels.</p>
-                        <a href="<?= admin_url('courier/settings') ?>" class="btn btn-primary btn-sm mtop10">Configure Accounts</a>
-                    </div>
-                <?php else: ?>
-                    <p class="text-muted mbot20">Select the courier account you wish to use for booking this order:</p>
-                    <div class="row">
-                        <?php foreach ($courier_accounts as $acc): ?>
-                            <div class="col-xs-12 mbot15">
-                                <a href="#" class="select-courier-account-card btn-block" 
-                                   data-account-id="<?= $acc['id'] ?>"
-                                   data-provider="<?= e($acc['provider']) ?>"
-                                   data-account-name="<?= e($acc['name']) ?>">
-                                    <div class="pull-left" style="font-size: 24px; margin-right: 15px; margin-top: 2px;">
-                                        <?php if ($acc['provider'] === 'steadfast'): ?>
-                                            <span class="text-danger"><i class="fa fa-paper-plane"></i></span>
-                                        <?php else: ?>
-                                            <span class="text-primary"><i class="fa fa-motorcycle"></i></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="pull-right">
-                                        <span class="label label-<?= $acc['provider'] === 'steadfast' ? 'danger' : 'primary' ?>">
-                                            <?= strtoupper(e($acc['provider'])) ?>
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <h4 class="bold no-margin" style="color: #1e293b; font-size: 16px;"><?= e($acc['name']) ?></h4>
-                                        <small class="text-muted">Click to select and load booking form</small>
-                                    </div>
-                                    <div class="clearfix"></div>
-                                </a>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
-                <div class="text-right mtop10">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                </div>
-            </div>
-
-            <!-- STATE 2: BOOKING FORM VIEW -->
-            <div id="booking-state-form" style="display: none; background: #f8fafc; padding: 20px;">
-                
-                <!-- Recipient Info Card -->
-                <div class="panel panel-default" style="border: 1px solid #e2e8f0; border-radius: 4px; box-shadow: none; padding: 15px; background: #fff; margin-bottom: 20px;">
-                    <h5 class="bold text-muted no-margin mbot10"><i class="fa fa-user"></i> Recipient & Shipping Information</h5>
-                    <p class="mbot5"><strong>Name:</strong> <span id="booking-rec-name">-</span></p>
-                    <p class="mbot5"><strong>Phone:</strong> <span id="booking-rec-phone">-</span></p>
-                    <p class="mbot0"><strong>Address:</strong> <span id="booking-rec-address">-</span></p>
-                </div>
-
-                <?= form_open('#', ['id' => 'inline-courier-booking-form']) ?>
-                <input type="hidden" name="ecomcore_order_id" id="booking-ecomcore-order-id" value="">
-                <input type="hidden" name="courier_account_id" id="booking-courier-account-id" value="">
-
-                <!-- Active Account Notice -->
-                <div class="form-group">
-                    <label class="control-label bold block">Selected Account:</label>
-                    <span id="booking-selected-account-label" class="label label-info block" style="font-size: 13px; padding: 8px 10px; text-align: left;">-</span>
-                </div>
-
-                <!-- COD Amount -->
-                <div class="form-group">
-                    <label for="booking-cod-amount" class="control-label">COD Amount (BDT)</label>
-                    <input type="number" step="0.01" min="0" name="cod_amount" id="booking-cod-amount" class="form-control" value="0.00" required>
-                    <small class="text-muted">If the order is already paid (e.g. POS), set COD Amount to 0.00.</small>
-                </div>
-
-                <!-- Notes -->
-                <div class="form-group">
-                    <label for="booking-notes" class="control-label">Delivery Note</label>
-                    <textarea name="notes" id="booking-notes" class="form-control" rows="2" placeholder="e.g. Call before delivery"></textarea>
-                </div>
-
-                <!-- Pathao Specific Fields -->
-                <div id="booking-pathao-fields" style="display: none; border-left: 3px solid #3b82f6; padding-left: 15px; margin: 15px 0;">
-                    <h5 class="bold text-primary mbot15"><i class="fa fa-motorcycle"></i> Pathao Courier Delivery Settings</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="booking-recipient-city" class="control-label">City</label>
-                                <select name="recipient_city" id="booking-recipient-city" class="form-control">
-                                    <option value="">Select City...</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="booking-recipient-zone" class="control-label">Zone</label>
-                                <select name="recipient_zone" id="booking-recipient-zone" class="form-control" disabled>
-                                    <option value="">Select Zone...</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="booking-recipient-area" class="control-label">Area</label>
-                                <select name="recipient_area" id="booking-recipient-area" class="form-control" disabled>
-                                    <option value="">Select Area...</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="booking-delivery-type" class="control-label">Delivery Type</label>
-                                <select name="delivery_type" id="booking-delivery-type" class="form-control">
-                                    <option value="48">Normal Delivery (48h)</option>
-                                    <option value="12">On Demand Delivery (12h)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="booking-item-type" class="control-label">Item Type</label>
-                                <select name="item_type" id="booking-item-type" class="form-control">
-                                    <option value="2">Parcel</option>
-                                    <option value="1">Document</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="booking-item-weight" class="control-label">Weight (KG)</label>
-                                <input type="number" step="0.1" name="item_weight" id="booking-item-weight" class="form-control" value="0.5">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="booking-item-quantity" class="control-label">Quantity</label>
-                                <input type="number" min="1" name="item_quantity" id="booking-item-quantity" class="form-control" value="1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="text-right mtop25">
-                    <button type="button" class="btn btn-default" id="booking-back-to-selection"><i class="fa fa-arrow-left"></i> Change Courier</button>
-                    <button type="submit" class="btn btn-primary"><i class="fa fa-paper-plane"></i> Book Parcel</button>
-                </div>
-                <?= form_close() ?>
-
-            </div>
-
-        </div>
-    </div>
-</div>
-
 <style>
-.select-courier-account-card {
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 15px;
-    background: #fff;
-    text-decoration: none !important;
-    transition: all 0.2s;
-    box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
-}
-.select-courier-account-card:hover {
-    border-color: #3b82f6 !important;
-    background: #f0f7ff !important;
-    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -1px rgba(59, 130, 246, 0.06) !important;
-    transform: translateY(-1px);
-}
 .rating-circle {
     width: 100px;
     height: 100px;

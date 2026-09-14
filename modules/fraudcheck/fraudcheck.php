@@ -21,12 +21,12 @@ function fraudcheck_activation_hook(): void
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 hooks()->add_action('app_init', 'fraudcheck_load_resources');
-hooks()->add_action('ecomcore_order_created', 'fraudcheck_handle_order_created');
+hooks()->add_action('salesos_order_created', 'fraudcheck_handle_order_created');
 
 function fraudcheck_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) {
+    if (!$CI->app_modules->is_active('salesos')) {
         return;
     }
     $CI->load->model(FRAUDCHECK_MODULE_NAME . '/fraudcheck_model');
@@ -50,7 +50,7 @@ function fraudcheck_handle_order_created($order_id): void
     $db_prefix = db_prefix();
     $sql = "
         SELECT COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone
-        FROM {$db_prefix}ecomcore_orders o
+        FROM {$db_prefix}salesos_orders o
         LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
         LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
         LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id

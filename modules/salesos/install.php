@@ -8,9 +8,68 @@ if (!isset($CI)) {
 
 $db_prefix = db_prefix();
 
+// 0. Migration: this kernel was called `ecomcore` before the SalesOS name moved
+// here from the telephony module. RENAME TABLE carries an existing install
+// forward with its orders, line items, credentials and event log intact —
+// the CREATE TABLE guards below then see the renamed tables and skip.
+$migrated_from_ecomcore = false;
+
+foreach (['credentials', 'orders', 'order_items', 'events'] as $legacy_table) {
+    $old = $db_prefix . 'ecomcore_' . $legacy_table;
+    $new = $db_prefix . 'salesos_' . $legacy_table;
+
+    if ($CI->db->table_exists($old) && !$CI->db->table_exists($new)) {
+        $CI->db->query("RENAME TABLE `{$old}` TO `{$new}`");
+        $migrated_from_ecomcore = true;
+    }
+}
+
+// Deregister the old kernel, or Perfex keeps trying to boot
+// modules/ecomcore/ecomcore.php, which no longer exists.
+if ($migrated_from_ecomcore) {
+    $CI->db->where('module_name', 'ecomcore');
+    $CI->db->delete($db_prefix . 'modules');
+}
+
+// Sibling modules link back to an order by column name. Renaming the column
+// here, from the kernel, keeps the four of them consistent even if one is
+// reactivated on its own — each module's own install.php defines the new name
+// for fresh installs, but only an existing install needs this rename.
+foreach ([
+    'courier_consignments' => 'courier',
+    'pos_sales'            => 'pos',
+    'returns_orders'       => 'returns',
+    'wcsync_orders'        => 'wcsync',
+] as $table => $owner) {
+    $full = $db_prefix . $table;
+
+    if ($CI->db->table_exists($full)
+        && $CI->db->field_exists('ecomcore_order_id', $full)
+        && !$CI->db->field_exists('salesos_order_id', $full)) {
+        // The column type differs between these tables (NOT NULL in courier,
+        // returns and wcsync; nullable in pos), so read the existing definition
+        // back rather than hardcoding one and silently changing nullability.
+        $nullable = $CI->db->query(
+            'SELECT IS_NULLABLE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = "ecomcore_order_id"',
+            [$full]
+        )->row();
+        $null_sql = ($nullable && $nullable->IS_NULLABLE === 'YES') ? 'NULL DEFAULT NULL' : 'NOT NULL';
+
+        $CI->db->query("ALTER TABLE `{$full}` CHANGE `ecomcore_order_id` `salesos_order_id` INT(11) {$null_sql}");
+    }
+}
+
+// CodeIgniter caches the table and field lists for the lifetime of the request,
+// so every table_exists()/field_exists() guard below would still be answering
+// from the pre-migration snapshot — and the CREATE TABLE guards would try to
+// recreate tables the RENAME above just produced. Drop the cache so the rest of
+// this file sees the database as it actually is now.
+$CI->db->data_cache = [];
+
 // 1. Credentials table
-if (!$CI->db->table_exists($db_prefix . 'ecomcore_credentials')) {
-    $CI->db->query("CREATE TABLE `{$db_prefix}ecomcore_credentials` (
+if (!$CI->db->table_exists($db_prefix . 'salesos_credentials')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_credentials` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `owner_module` VARCHAR(50) NOT NULL,
         `label` VARCHAR(150) NOT NULL,
@@ -25,8 +84,8 @@ if (!$CI->db->table_exists($db_prefix . 'ecomcore_credentials')) {
 }
 
 // 2. Orders table
-if (!$CI->db->table_exists($db_prefix . 'ecomcore_orders')) {
-    $CI->db->query("CREATE TABLE `{$db_prefix}ecomcore_orders` (
+if (!$CI->db->table_exists($db_prefix . 'salesos_orders')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_orders` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `channel` VARCHAR(30) NOT NULL,
         `channel_ref_id` VARCHAR(100) DEFAULT NULL,
@@ -51,8 +110,8 @@ if (!$CI->db->table_exists($db_prefix . 'ecomcore_orders')) {
 }
 
 // 3. Order Items table
-if (!$CI->db->table_exists($db_prefix . 'ecomcore_order_items')) {
-    $CI->db->query("CREATE TABLE `{$db_prefix}ecomcore_order_items` (
+if (!$CI->db->table_exists($db_prefix . 'salesos_order_items')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_order_items` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `order_id` INT(11) NOT NULL,
         `item_id` INT(11) DEFAULT NULL,
@@ -68,8 +127,8 @@ if (!$CI->db->table_exists($db_prefix . 'ecomcore_order_items')) {
 }
 
 // 4. Events table
-if (!$CI->db->table_exists($db_prefix . 'ecomcore_events')) {
-    $CI->db->query("CREATE TABLE `{$db_prefix}ecomcore_events` (
+if (!$CI->db->table_exists($db_prefix . 'salesos_events')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_events` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `event_type` VARCHAR(60) NOT NULL,
         `entity_type` VARCHAR(30) DEFAULT NULL,
@@ -83,7 +142,7 @@ if (!$CI->db->table_exists($db_prefix . 'ecomcore_events')) {
 }
 
 // 5. Indexed phone-suffix generated column on core CRM tables, shared by every
-// module's phone-matching (ecomcore, wooconnector). The old approach matched via
+// module's phone-matching (salesos, wooconnector). The old approach matched via
 // RIGHT(REPLACE(REPLACE(REPLACE(phonenumber,...)))) in the WHERE clause, which
 // MySQL/MariaDB cannot use an index through — every lookup was a full table scan.
 // A STORED generated column can be indexed normally.

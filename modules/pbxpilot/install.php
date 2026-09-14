@@ -13,14 +13,22 @@ if (!isset($CI)) {
 //    credentials in the settings table, where a drop-and-recreate would lose
 //    all of it. Runs before anything below, so the CREATE TABLE guards then
 //    see the already-renamed tables and skip. ──────────────────────────────
+$migrated_from_salesos = false;
+
 foreach (['settings', 'agents', 'calls', 'phone_index', 'active_calls', 'cdr_sync'] as $legacy_table) {
     $old = db_prefix() . 'salesos_' . $legacy_table;
     $new = db_prefix() . 'pbxpilot_' . $legacy_table;
 
     if ($CI->db->table_exists($old) && !$CI->db->table_exists($new)) {
         $CI->db->query("RENAME TABLE `{$old}` TO `{$new}`");
+        $migrated_from_salesos = true;
     }
 }
+
+// CodeIgniter caches the table list for the request, so without this the
+// table_exists() guards below would still answer from the pre-rename snapshot
+// and try to recreate the tables the RENAME above just produced.
+$CI->db->data_cache = [];
 
 // Setting keys are namespaced too (`salesos_ami_host` → `pbxpilot_ami_host`),
 // so they have to move with the table or every lookup silently returns the
@@ -33,10 +41,14 @@ if ($CI->db->table_exists(db_prefix() . 'pbxpilot_settings')) {
     );
 }
 
-// Perfex still has the old module registered; left behind it would try to boot
-// modules/salesos/salesos.php, which no longer exists.
-$CI->db->where('module_name', 'salesos');
-$CI->db->delete(db_prefix() . 'modules');
+// Drop the old registration, but ONLY in the run that actually migrated this
+// module's tables. `salesos` is now the e-commerce kernel's name too, so an
+// unconditional delete here would deregister the kernel every time this module
+// is reactivated.
+if ($migrated_from_salesos) {
+    $CI->db->where('module_name', 'salesos');
+    $CI->db->delete(db_prefix() . 'modules');
+}
 
 // ── Settings (dedicated key/value store — deliberately NOT Perfex's global
 //    `options` table, so pbxpilot config stays namespaced and portable; see
@@ -73,7 +85,7 @@ $defaults = [
     'pbxpilot_agency_pack'                => '0',
     'pbxpilot_agency_bizbot_messaging'    => '0',
     'pbxpilot_agency_bizbot_provisioning' => '0',
-    'pbxpilot_voice_escalation'           => '0', // hard-gated on ecomcore ledger — see pbxpilot_helper.php
+    'pbxpilot_voice_escalation'           => '0', // hard-gated on salesos ledger — see pbxpilot_helper.php
 
     // PBX connection (§8a) — deliberately left empty here, not hardcoded to any
     // specific box. Filled in via Settings → Connection, from provision_pbx.sh's

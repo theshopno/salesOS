@@ -330,7 +330,7 @@
                                     <h5 class="pos-product-card-name" style="font-weight: 700; color: #475569; font-size: 11px; margin: 4px 0;"><?= e($prod['name']) ?></h5>
                                 </div>
                                 <div class="mtop5" style="text-align: center;">
-                                    <div class="text-muted" style="font-size: 11px; margin-bottom: 2px; color: #64748b;">Price: <?= ecomcore_format_number($rate) ?></div>
+                                    <div class="text-muted" style="font-size: 11px; margin-bottom: 2px; color: #64748b;">Price: <?= salesos_format_number($rate) ?></div>
                                     <div style="font-size: 11px; color: #94a3b8; font-weight: 600;">
                                         Stock: <?= $is_out ? 'N/A' : number_format($stock, 0) . '-PCS' ?>
                                     </div>
@@ -505,7 +505,7 @@
             <input type="hidden" name="session_id" value="<?= $session['id'] ?>">
             <div class="modal-body">
                 <div class="alert alert-info">
-                    <strong>Opening Cash Float:</strong> <?= ecomcore_format_number($session['opening_balance']) ?> BDT
+                    <strong>Opening Cash Float:</strong> <?= salesos_format_number($session['opening_balance']) ?> BDT
                 </div>
                 <div class="form-group">
                     <label for="closing_balance" class="control-label">Closing Cash Balance (BDT)</label>

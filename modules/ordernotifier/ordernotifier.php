@@ -18,10 +18,10 @@ function ordernotifier_activation_hook(): void
     require(__DIR__ . '/install.php');
 }
 
-// Register ecomcore hooks
-hooks()->add_action('ecomcore_order_created', 'ordernotifier_handle_order_created');
-hooks()->add_action('ecomcore_order_confirmed', 'ordernotifier_handle_order_confirmed');
-hooks()->add_action('ecomcore_order_cancelled', 'ordernotifier_handle_order_cancelled');
+// Register salesos hooks
+hooks()->add_action('salesos_order_created', 'ordernotifier_handle_order_created');
+hooks()->add_action('salesos_order_confirmed', 'ordernotifier_handle_order_confirmed');
+hooks()->add_action('salesos_order_cancelled', 'ordernotifier_handle_order_cancelled');
 
 /**
  * Handle order created notification

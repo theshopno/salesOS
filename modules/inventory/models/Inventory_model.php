@@ -225,7 +225,7 @@ class Inventory_model extends App_Model
     public function handle_order_confirmed(int $order_id): void
     {
         $this->db->where('order_id', $order_id);
-        $items = $this->db->get(db_prefix() . 'ecomcore_order_items')->result_array();
+        $items = $this->db->get(db_prefix() . 'salesos_order_items')->result_array();
         $wh_id = $this->get_default_warehouse_id();
 
         foreach ($items as $item) {
@@ -277,7 +277,7 @@ class Inventory_model extends App_Model
 
             if ($product_id) {
                 $qty = (float) $item['qty'];
-                $deducted = $this->adjust_stock($product_id, $wh_id, -$qty, 'sale_out', 'ecomcore_order', $order_id, 'Ecomcore order confirmed');
+                $deducted = $this->adjust_stock($product_id, $wh_id, -$qty, 'sale_out', 'salesos_order', $order_id, 'Salesos order confirmed');
 
                 // The order is already committed by the time this hook runs, so a
                 // refusal cannot unwind it — record it loudly instead, since the
@@ -292,7 +292,7 @@ class Inventory_model extends App_Model
     public function handle_order_cancelled(int $order_id): void
     {
         // Find prior stock deductions for this order
-        $this->db->where('ref_type', 'ecomcore_order');
+        $this->db->where('ref_type', 'salesos_order');
         $this->db->where('ref_id', $order_id);
         $this->db->where('movement_type', 'sale_out');
         $ledger_rows = $this->db->get(db_prefix() . 'inventory_stock_ledger')->result_array();
@@ -300,21 +300,21 @@ class Inventory_model extends App_Model
         foreach ($ledger_rows as $row) {
             // Reverse quantity
             $qty = abs((float) $row['qty']);
-            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'ecomcore_order', $order_id, 'Ecomcore order cancelled - stock returned');
+            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'salesos_order', $order_id, 'Salesos order cancelled - stock returned');
         }
     }
 
     public function handle_stock_returned(int $order_id): void
     {
         // Return process
-        $this->db->where('ref_type', 'ecomcore_order');
+        $this->db->where('ref_type', 'salesos_order');
         $this->db->where('ref_id', $order_id);
         $this->db->where('movement_type', 'sale_out');
         $ledger_rows = $this->db->get(db_prefix() . 'inventory_stock_ledger')->result_array();
 
         foreach ($ledger_rows as $row) {
             $qty = abs((float) $row['qty']);
-            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'ecomcore_order', $order_id, 'Ecomcore return processed - stock returned');
+            $this->adjust_stock((int) $row['product_id'], (int) $row['warehouse_id'], $qty, 'return_in', 'salesos_order', $order_id, 'Salesos return processed - stock returned');
         }
     }
 }

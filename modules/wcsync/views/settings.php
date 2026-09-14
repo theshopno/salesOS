@@ -18,7 +18,7 @@
                                 <strong><i class="fa fa-exclamation-triangle"></i> No WooCommerce credentials found.</strong>
                                 <p>You must add site credentials in the credentials vault first before configuring a site connection.</p>
                                 <div style="margin-top:10px;">
-                                    <a href="<?= admin_url('ecomcore/integrations') ?>" class="btn btn-warning btn-sm">Go to Credentials Vault</a>
+                                    <a href="<?= admin_url('salesos/integrations') ?>" class="btn btn-warning btn-sm">Go to Credentials Vault</a>
                                 </div>
                             </div>
                         <?php endif; ?>

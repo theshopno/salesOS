@@ -60,11 +60,11 @@
                                                 <td>
                                                     <ul style="padding-left: 15px; margin: 0; font-size:12px;">
                                                         <?php foreach ($po['items'] as $item): ?>
-                                                            <li><?= e($item['product_name']) ?> &times; <?= ecomcore_format_number($item['qty']) ?> (@<?= ecomcore_format_number($item['unit_cost']) ?> BDT)</li>
+                                                            <li><?= e($item['product_name']) ?> &times; <?= salesos_format_number($item['qty']) ?> (@<?= salesos_format_number($item['unit_cost']) ?> BDT)</li>
                                                         <?php endforeach; ?>
                                                     </ul>
                                                 </td>
-                                                <td><strong><?= ecomcore_format_number($po['total']) ?> BDT</strong></td>
+                                                <td><strong><?= salesos_format_number($po['total']) ?> BDT</strong></td>
                                                 <td>
                                                     <?php 
                                                         $status_class = 'default';

@@ -16,23 +16,23 @@ class Returns_model extends App_Model
     {
         $db_prefix = db_prefix();
         if (is_numeric($id)) {
-            $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}ecomcore_orders.channel, {$db_prefix}ecomcore_orders.channel_ref_id, tblstaff.firstname, tblstaff.lastname");
-            $this->db->join($db_prefix . 'ecomcore_orders', $db_prefix . 'ecomcore_orders.id = ' . $db_prefix . 'returns_orders.ecomcore_order_id', 'left');
+            $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id, tblstaff.firstname, tblstaff.lastname");
+            $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
             $this->db->join('tblstaff', 'tblstaff.staffid = ' . $db_prefix . 'returns_orders.staff_id', 'left');
             $this->db->where($db_prefix . 'returns_orders.id', $id);
             $ret = $this->db->get($db_prefix . 'returns_orders')->row();
             if ($ret) {
                 // Fetch line items
-                $this->db->select("{$db_prefix}returns_order_items.*, {$db_prefix}ecomcore_order_items.name as product_name, {$db_prefix}ecomcore_order_items.sku as product_sku, {$db_prefix}ecomcore_order_items.product_id");
-                $this->db->join($db_prefix . 'ecomcore_order_items', $db_prefix . 'ecomcore_order_items.id = ' . $db_prefix . 'returns_order_items.order_item_id', 'left');
+                $this->db->select("{$db_prefix}returns_order_items.*, {$db_prefix}salesos_order_items.name as product_name, {$db_prefix}salesos_order_items.sku as product_sku, {$db_prefix}salesos_order_items.product_id");
+                $this->db->join($db_prefix . 'salesos_order_items', $db_prefix . 'salesos_order_items.id = ' . $db_prefix . 'returns_order_items.order_item_id', 'left');
                 $this->db->where('return_order_id', $id);
                 $ret->items = $this->db->get($db_prefix . 'returns_order_items')->result_array();
             }
             return $ret;
         }
 
-        $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}ecomcore_orders.channel, {$db_prefix}ecomcore_orders.channel_ref_id");
-        $this->db->join($db_prefix . 'ecomcore_orders', $db_prefix . 'ecomcore_orders.id = ' . $db_prefix . 'returns_orders.ecomcore_order_id', 'left');
+        $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id");
+        $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
         $this->db->order_by('created_at', 'DESC');
         return $this->db->get($db_prefix . 'returns_orders')->result_array();
     }
@@ -45,7 +45,7 @@ class Returns_model extends App_Model
         $db_prefix = db_prefix();
         $this->db->trans_start();
 
-        $order_id      = (int) $data['ecomcore_order_id'];
+        $order_id      = (int) $data['salesos_order_id'];
         $reason        = isset($data['reason']) ? trim($data['reason']) : '';
         $requested_by  = isset($data['requested_by']) ? trim($data['requested_by']) : 'staff';
         $refund_amount = isset($data['refund_amount']) ? (float) $data['refund_amount'] : 0.00;
@@ -53,7 +53,7 @@ class Returns_model extends App_Model
         $items         = $data['items'] ?? []; // Format: [ ['order_item_id' => X, 'qty' => Y, 'condition' => Z], ... ]
 
         $insert_data = [
-            'ecomcore_order_id' => $order_id,
+            'salesos_order_id' => $order_id,
             'status'            => $status,
             'reason'            => $reason,
             'requested_by'      => $requested_by,
@@ -137,13 +137,13 @@ class Returns_model extends App_Model
     }
 
     /**
-     * Returns list of eligible items from ecomcore order to return (checks already returned quantities)
+     * Returns list of eligible items from salesos order to return (checks already returned quantities)
      */
     public function get_eligible_order_items($order_id)
     {
         $db_prefix = db_prefix();
         $this->db->where('order_id', $order_id);
-        $items = $this->db->get($db_prefix . 'ecomcore_order_items')->result_array();
+        $items = $this->db->get($db_prefix . 'salesos_order_items')->result_array();
 
         $eligible = [];
         foreach ($items as $item) {

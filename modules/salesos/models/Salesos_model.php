@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Ecomcore_model extends App_Model
+class Salesos_model extends App_Model
 {
     public function __construct()
     {
@@ -10,7 +10,7 @@ class Ecomcore_model extends App_Model
     }
 
     /**
-     * Import a generic order into Ecomcore tables.
+     * Import a generic order into Salesos tables.
      *
      * @param array $generic_order
      * @return int The created order ID
@@ -25,7 +25,7 @@ class Ecomcore_model extends App_Model
         if ($channel_ref_id !== null) {
             $this->db->where('channel', $channel);
             $this->db->where('channel_ref_id', $channel_ref_id);
-            $existing = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+            $existing = $this->db->get(db_prefix() . 'salesos_orders')->row();
             if ($existing) {
                 return (int) $existing->id;
             }
@@ -54,7 +54,7 @@ class Ecomcore_model extends App_Model
             'order_date'      => $generic_order['order_date'] ?? date('Y-m-d H:i:s'),
         ];
 
-        $this->db->insert(db_prefix() . 'ecomcore_orders', $order_data);
+        $this->db->insert(db_prefix() . 'salesos_orders', $order_data);
         $order_id = $this->db->insert_id();
 
         // 3. Insert order items
@@ -69,13 +69,13 @@ class Ecomcore_model extends App_Model
                 'qty'        => $item['qty'] ?? 1.00,
                 'unit_price' => $item['unit_price'] ?? 0.00,
             ];
-            $this->db->insert(db_prefix() . 'ecomcore_order_items', $item_data);
+            $this->db->insert(db_prefix() . 'salesos_order_items', $item_data);
         }
 
         $this->db->trans_complete();
 
         if ($this->db->trans_status() === false) {
-            log_activity('Ecomcore import_order transaction failed for channel ' . $channel . ' ref ' . ($channel_ref_id ?? 'null'));
+            log_activity('Salesos import_order transaction failed for channel ' . $channel . ' ref ' . ($channel_ref_id ?? 'null'));
             return 0;
         }
 
@@ -85,7 +85,7 @@ class Ecomcore_model extends App_Model
             'total'   => $generic_order['total'] ?? 0.00,
         ]);
 
-        hooks()->do_action('ecomcore_order_created', $order_id);
+        hooks()->do_action('salesos_order_created', $order_id);
 
         // If order status is not pending, trigger status hook on import
         if (isset($generic_order['status']) && $generic_order['status'] !== 'pending') {
@@ -123,7 +123,7 @@ class Ecomcore_model extends App_Model
         // Create new lead if no match found
         $name = trim($data['name'] ?? '');
         if ($name === '') {
-            $name = 'Ecomcore Customer';
+            $name = 'Salesos Customer';
             if ($phone) {
                 $name .= ' (' . $phone . ')';
             }
@@ -138,7 +138,7 @@ class Ecomcore_model extends App_Model
             'state'       => $data['state'] ?? '',
             'zip'         => $data['zip'] ?? '',
             'country'     => $data['country'] ?? $this->resolve_country_id($data['country_code'] ?? 'BD'),
-            'description' => $data['description'] ?? 'Created via Ecomcore Order Import',
+            'description' => $data['description'] ?? 'Created via Salesos Order Import',
             'status'      => $data['status_id'] ?? $this->get_default_lead_status_id(),
             'source'      => $data['source_id'] ?? $this->get_or_create_source_id(),
             'addedfrom'   => 0,
@@ -161,7 +161,7 @@ class Ecomcore_model extends App_Model
     public function set_order_status(int $order_id, string $status): bool
     {
         $this->db->where('id', $order_id);
-        $order = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+        $order = $this->db->get(db_prefix() . 'salesos_orders')->row();
 
         if (!$order) {
             return false;
@@ -173,13 +173,13 @@ class Ecomcore_model extends App_Model
         }
 
         $this->db->where('id', $order_id);
-        $updated = $this->db->update(db_prefix() . 'ecomcore_orders', [
+        $updated = $this->db->update(db_prefix() . 'salesos_orders', [
             'status'     => $status,
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
         if (!$updated) {
-            log_activity('Ecomcore set_order_status failed to update order #' . $order_id);
+            log_activity('Salesos set_order_status failed to update order #' . $order_id);
             return false;
         }
 
@@ -200,18 +200,18 @@ class Ecomcore_model extends App_Model
     {
         if ($new_status === 'confirmed') {
             $this->log_event('order.confirmed', 'order', $order_id);
-            hooks()->do_action('ecomcore_order_confirmed', $order_id);
+            hooks()->do_action('salesos_order_confirmed', $order_id);
         } elseif ($new_status === 'cancelled') {
             $this->log_event('order.cancelled', 'order', $order_id);
-            hooks()->do_action('ecomcore_order_cancelled', $order_id);
+            hooks()->do_action('salesos_order_cancelled', $order_id);
         } elseif ($new_status === 'returned') {
             $this->log_event('order.returned', 'order', $order_id);
-            hooks()->do_action('ecomcore_stock_returned', $order_id);
+            hooks()->do_action('salesos_stock_returned', $order_id);
         }
     }
 
     /**
-     * Log an event in tblecomcore_events
+     * Log an event in tblsalesos_events
      *
      * @param string $event_type
      * @param string $entity_type
@@ -221,7 +221,7 @@ class Ecomcore_model extends App_Model
      */
     public function log_event(string $event_type, string $entity_type, int $entity_id, array $payload = []): void
     {
-        $this->db->insert(db_prefix() . 'ecomcore_events', [
+        $this->db->insert(db_prefix() . 'salesos_events', [
             'event_type'  => $event_type,
             'entity_type' => $entity_type,
             'entity_id'   => $entity_id,
@@ -266,12 +266,12 @@ class Ecomcore_model extends App_Model
 
     private function get_or_create_source_id(): int
     {
-        $this->db->where('name', 'Ecomcore');
+        $this->db->where('name', 'Salesos');
         $source = $this->db->get(db_prefix() . 'leads_sources')->row();
         if ($source) {
             return (int) $source->id;
         }
-        $this->db->insert(db_prefix() . 'leads_sources', ['name' => 'Ecomcore']);
+        $this->db->insert(db_prefix() . 'leads_sources', ['name' => 'Salesos']);
         return (int) $this->db->insert_id();
     }
 

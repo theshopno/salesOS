@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Ecomcore_encryption
+class Salesos_encryption
 {
     private $CI;
 

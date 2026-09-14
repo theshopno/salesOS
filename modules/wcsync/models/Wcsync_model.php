@@ -9,12 +9,12 @@ class Wcsync_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-        $this->load->model('ecomcore/ecomcore_model');
-        $this->load->library('ecomcore/ecomcore_encryption');
+        $this->load->model('salesos/salesos_model');
+        $this->load->library('salesos/salesos_encryption');
         
         $db_prefix = db_prefix();
         if (!$this->db->field_exists('wc_status', $db_prefix . 'wcsync_orders')) {
-            $this->db->query("ALTER TABLE `{$db_prefix}wcsync_orders` ADD COLUMN `wc_status` VARCHAR(50) DEFAULT 'pending' AFTER `ecomcore_order_id`;");
+            $this->db->query("ALTER TABLE `{$db_prefix}wcsync_orders` ADD COLUMN `wc_status` VARCHAR(50) DEFAULT 'pending' AFTER `salesos_order_id`;");
         }
     }
 
@@ -156,13 +156,13 @@ class Wcsync_model extends App_Model
     {
         // 1. Get credentials from vault
         $this->db->where('id', $site['credential_id']);
-        $cred = $this->db->get(db_prefix() . 'ecomcore_credentials')->row();
+        $cred = $this->db->get(db_prefix() . 'salesos_credentials')->row();
         if (!$cred) {
             log_activity('Wcsync site ' . $site['name'] . ' has invalid credential_id: ' . $site['credential_id']);
             return false;
         }
 
-        $payload = $this->ecomcore_encryption->decrypt($cred->payload, true);
+        $payload = $this->salesos_encryption->decrypt($cred->payload, true);
         if (!$payload || empty($payload['consumer_key']) || empty($payload['consumer_secret'])) {
             log_activity('Wcsync site ' . $site['name'] . ' unable to decrypt credentials.');
             return false;
@@ -206,7 +206,7 @@ class Wcsync_model extends App_Model
 
         $wc_status = $order['status'] ?? 'pending';
         
-        // Map WC statuses to Ecomcore statuses
+        // Map WC statuses to Salesos statuses
         $target_status = 'pending';
         if (in_array($wc_status, $this->lost_statuses)) {
             $target_status = 'cancelled';
@@ -313,15 +313,15 @@ class Wcsync_model extends App_Model
         }
 
         if ($existing) {
-            // Check status update (either ecomcore status mismatch or wc status column mismatch/missing)
-            $this->db->where('id', $existing->ecomcore_order_id);
-            $eco_order = $this->db->get(db_prefix() . 'ecomcore_orders')->row();
+            // Check status update (either salesos status mismatch or wc status column mismatch/missing)
+            $this->db->where('id', $existing->salesos_order_id);
+            $eco_order = $this->db->get(db_prefix() . 'salesos_orders')->row();
             
             $wc_status_mismatch = !isset($existing->wc_status) || $existing->wc_status !== $wc_status;
             
             if ($eco_order && ($eco_order->status !== $target_status || $wc_status_mismatch)) {
                 if ($eco_order->status !== $target_status) {
-                    $this->ecomcore_model->set_order_status($existing->ecomcore_order_id, $target_status);
+                    $this->salesos_model->set_order_status($existing->salesos_order_id, $target_status);
                 }
                 
                 $this->db->where('id', $existing->id);
@@ -377,7 +377,7 @@ class Wcsync_model extends App_Model
         $line_items = $order['line_items'] ?? [];
         foreach ($line_items as $item) {
             $generic_order['items'][] = [
-                'product_id' => null, // Let Ecomcore match by SKU or handle later
+                'product_id' => null, // Let Salesos match by SKU or handle later
                 'item_id'    => null,
                 'name'       => $item['name'] ?? 'Woo Item',
                 'sku'        => !empty($item['sku']) ? trim($item['sku']) : null,
@@ -387,13 +387,13 @@ class Wcsync_model extends App_Model
         }
 
         // Import Order
-        $eco_order_id = $this->ecomcore_model->import_order($generic_order);
+        $eco_order_id = $this->salesos_model->import_order($generic_order);
 
         // Save mapping
         $this->db->insert(db_prefix() . 'wcsync_orders', [
             'site_id'           => $site['id'],
             'wc_order_id'       => $order['id'],
-            'ecomcore_order_id' => $eco_order_id,
+            'salesos_order_id' => $eco_order_id,
             'wc_status'         => $wc_status,
             'synced_at'         => date('Y-m-d H:i:s'),
         ]);
@@ -407,9 +407,9 @@ class Wcsync_model extends App_Model
     public function fetch_product(array $site, int $product_id)
     {
         $this->db->where('id', $site['credential_id']);
-        $cred = $this->db->get(db_prefix() . 'ecomcore_credentials')->row();
+        $cred = $this->db->get(db_prefix() . 'salesos_credentials')->row();
         if (!$cred) return false;
-        $payload = $this->ecomcore_encryption->decrypt($cred->payload, true);
+        $payload = $this->salesos_encryption->decrypt($cred->payload, true);
         if (!$payload || empty($payload['consumer_key']) || empty($payload['consumer_secret'])) return false;
 
         $url = $site['site_url'] . '/wp-json/wc/v3/products/' . $product_id;

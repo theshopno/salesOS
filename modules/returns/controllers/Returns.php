@@ -8,7 +8,7 @@ class Returns extends AdminController
     {
         parent::__construct();
         $this->load->model('returns_model');
-        $this->load->model('ecomcore/ecomcore_model');
+        $this->load->model('salesos/salesos_model');
     }
 
     /**
@@ -58,7 +58,7 @@ class Returns extends AdminController
             }
 
             $insert_data = [
-                'ecomcore_order_id' => $data['ecomcore_order_id'],
+                'salesos_order_id' => $data['salesos_order_id'],
                 'reason'            => $data['reason'],
                 'requested_by'      => $data['requested_by'] ?? 'staff',
                 'refund_amount'     => $data['refund_amount'] ?? 0.00,
@@ -82,7 +82,7 @@ class Returns extends AdminController
         $this->db->where_in('status', ['confirmed', 'paid']);
         $this->db->order_by('created_at', 'DESC');
         $this->db->limit(100);
-        $data['orders'] = $this->db->get(db_prefix() . 'ecomcore_orders')->result_array();
+        $data['orders'] = $this->db->get(db_prefix() . 'salesos_orders')->result_array();
 
         $data['title'] = 'Create Return Order';
         $this->load->view('returns/create', $data);
@@ -91,20 +91,20 @@ class Returns extends AdminController
     /**
      * Get order details for AJAX returns creation
      */
-    public function get_order_details_ajax($ecomcore_order_id)
+    public function get_order_details_ajax($salesos_order_id)
     {
         if (!staff_can('create', 'returns')) {
             echo json_encode(['error' => 'Permission Denied']);
             return;
         }
 
-        $order = $this->db->get_where(db_prefix() . 'ecomcore_orders', ['id' => $ecomcore_order_id])->row();
+        $order = $this->db->get_where(db_prefix() . 'salesos_orders', ['id' => $salesos_order_id])->row();
         if (!$order) {
             echo json_encode([]);
             return;
         }
 
-        $items = $this->returns_model->get_eligible_order_items($ecomcore_order_id);
+        $items = $this->returns_model->get_eligible_order_items($salesos_order_id);
 
         echo json_encode([
             'order' => [

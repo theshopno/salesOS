@@ -7,8 +7,8 @@ class Courier_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-        $this->load->library('ecomcore/ecomcore_encryption');
-        $this->load->model('ecomcore/ecomcore_model');
+        $this->load->library('salesos/salesos_encryption');
+        $this->load->model('salesos/salesos_model');
 
         // Dynamic Self-Healing Migration
         $db_prefix = db_prefix();
@@ -40,9 +40,9 @@ class Courier_model extends App_Model
 
         if ($account) {
             $this->db->where('id', $account['credential_id']);
-            $cred = $this->db->get($db_prefix . 'ecomcore_credentials')->row();
+            $cred = $this->db->get($db_prefix . 'salesos_credentials')->row();
             if ($cred) {
-                $decrypted = $this->ecomcore_encryption->decrypt($cred->payload, true);
+                $decrypted = $this->salesos_encryption->decrypt($cred->payload, true);
                 if (is_array($decrypted)) {
                     $account['api_key']       = $decrypted['api_key'] ?? '';
                     $account['secret_key']     = $decrypted['secret_key'] ?? '';
@@ -90,21 +90,21 @@ class Courier_model extends App_Model
             ];
         }
 
-        $encrypted = $this->ecomcore_encryption->encrypt($secret_payload);
+        $encrypted = $this->salesos_encryption->encrypt($secret_payload);
 
         if ($id) {
             $this->db->where('id', $id);
             $account = $this->db->get($db_prefix . 'courier_accounts')->row();
             if ($account) {
                 $this->db->where('id', $account['credential_id']);
-                $this->db->update($db_prefix . 'ecomcore_credentials', [
+                $this->db->update($db_prefix . 'salesos_credentials', [
                     'payload' => $encrypted,
                     'updated_at' => date('Y-m-d H:i:s')
                 ]);
                 $cred_id = $account['credential_id'];
             }
         } else {
-            $this->db->insert($db_prefix . 'ecomcore_credentials', [
+            $this->db->insert($db_prefix . 'salesos_credentials', [
                 'owner_module' => 'courier',
                 'label'        => 'Courier Config - ' . $label,
                 'cred_type'    => 'api_key',
@@ -213,7 +213,7 @@ class Courier_model extends App_Model
         $account = $this->db->get($db_prefix . 'courier_accounts')->row_array();
         if ($account) {
             $this->db->where('id', $account['credential_id']);
-            $this->db->delete($db_prefix . 'ecomcore_credentials');
+            $this->db->delete($db_prefix . 'salesos_credentials');
 
             $this->db->where('id', $id);
             $this->db->delete($db_prefix . 'courier_accounts');
@@ -333,7 +333,7 @@ class Courier_model extends App_Model
     /**
      * Book order with selected courier account
      */
-    public function book_order($ecomcore_order_id, $courier_account_id, $cod_amount, $notes = '', $additional_payload = [])
+    public function book_order($salesos_order_id, $courier_account_id, $cod_amount, $notes = '', $additional_payload = [])
     {
         $db_prefix = db_prefix();
         
@@ -346,15 +346,15 @@ class Courier_model extends App_Model
         // duplicate booking (double-click, retry after a timeout) is caught for
         // every provider, not just Pathao. Previously Steadfast returned early
         // above this check and could book the same order twice.
-        $this->db->where('ecomcore_order_id', $ecomcore_order_id);
+        $this->db->where('salesos_order_id', $salesos_order_id);
         $existing = $this->db->get($db_prefix . 'courier_consignments')->row();
         if ($existing) {
-            throw new Exception("Order ID {$ecomcore_order_id} has already been booked (Tracking ID: {$existing->tracking_id}).");
+            throw new Exception("Order ID {$salesos_order_id} has already been booked (Tracking ID: {$existing->tracking_id}).");
         }
 
         // If Steadfast, run standard Steadfast logic
         if ($account['provider'] === 'steadfast') {
-            return $this->book_order_steadfast($ecomcore_order_id, $courier_account_id, $cod_amount, $notes);
+            return $this->book_order_steadfast($salesos_order_id, $courier_account_id, $cod_amount, $notes);
         }
 
         if ($account['provider'] !== 'pathao') {
@@ -362,9 +362,9 @@ class Courier_model extends App_Model
         }
 
         // ── Pathao Booking Flow ────────────────────────────────────────────────
-        $order = $this->get_order_with_customer($ecomcore_order_id);
+        $order = $this->get_order_with_customer($salesos_order_id);
         if (!$order) {
-            throw new Exception("Order ID {$ecomcore_order_id} not found.");
+            throw new Exception("Order ID {$salesos_order_id} not found.");
         }
 
         // Normalise Phone
@@ -411,7 +411,7 @@ class Courier_model extends App_Model
             $c = $res['data'];
             
             $consignment_data = [
-                'ecomcore_order_id'  => $ecomcore_order_id,
+                'salesos_order_id'  => $salesos_order_id,
                 'courier_account_id' => $courier_account_id,
                 'consignment_id'     => $c['consignment_id'],
                 'tracking_id'        => $c['consignment_id'], // Pathao consignment ID is the tracking ID
@@ -426,8 +426,8 @@ class Courier_model extends App_Model
             $db_id = $this->db->insert_id();
 
             // Update order status
-            $this->db->where('id', $ecomcore_order_id);
-            $this->db->update($db_prefix . 'ecomcore_orders', [
+            $this->db->where('id', $salesos_order_id);
+            $this->db->update($db_prefix . 'salesos_orders', [
                 'status' => 'shipped',
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
@@ -449,12 +449,12 @@ class Courier_model extends App_Model
     /**
      * Book with Steadfast (Internal helper)
      */
-    private function book_order_steadfast($ecomcore_order_id, $courier_account_id, $cod_amount, $notes = '')
+    private function book_order_steadfast($salesos_order_id, $courier_account_id, $cod_amount, $notes = '')
     {
         $db_prefix = db_prefix();
-        $order = $this->get_order_with_customer($ecomcore_order_id);
+        $order = $this->get_order_with_customer($salesos_order_id);
         if (!$order) {
-            throw new Exception("Order ID {$ecomcore_order_id} not found.");
+            throw new Exception("Order ID {$salesos_order_id} not found.");
         }
 
         $account = $this->get_account($courier_account_id);
@@ -491,7 +491,7 @@ class Courier_model extends App_Model
             $c = $res['consignment'];
             
             $consignment_data = [
-                'ecomcore_order_id'  => $ecomcore_order_id,
+                'salesos_order_id'  => $salesos_order_id,
                 'courier_account_id' => $courier_account_id,
                 'consignment_id'     => $c['consignment_id'],
                 'tracking_id'        => $c['tracking_code'],
@@ -505,8 +505,8 @@ class Courier_model extends App_Model
             $this->db->insert($db_prefix . 'courier_consignments', $consignment_data);
             $db_id = $this->db->insert_id();
 
-            $this->db->where('id', $ecomcore_order_id);
-            $this->db->update($db_prefix . 'ecomcore_orders', [
+            $this->db->where('id', $salesos_order_id);
+            $this->db->update($db_prefix . 'salesos_orders', [
                 'status' => 'shipped',
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
@@ -524,8 +524,8 @@ class Courier_model extends App_Model
     public function get_consignments()
     {
         $db_prefix = db_prefix();
-        $this->db->select("{$db_prefix}courier_consignments.*, {$db_prefix}ecomcore_orders.channel, {$db_prefix}ecomcore_orders.channel_ref_id, {$db_prefix}courier_accounts.label as account_label, {$db_prefix}courier_accounts.provider");
-        $this->db->join($db_prefix . 'ecomcore_orders', $db_prefix . 'ecomcore_orders.id = ' . $db_prefix . 'courier_consignments.ecomcore_order_id', 'left');
+        $this->db->select("{$db_prefix}courier_consignments.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id, {$db_prefix}courier_accounts.label as account_label, {$db_prefix}courier_accounts.provider");
+        $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'courier_consignments.salesos_order_id', 'left');
         $this->db->join($db_prefix . 'courier_accounts', $db_prefix . 'courier_accounts.id = ' . $db_prefix . 'courier_consignments.courier_account_id', 'left');
         $this->db->order_by('created_at', 'DESC');
         return $this->db->get($db_prefix . 'courier_consignments')->result_array();
@@ -567,7 +567,7 @@ class Courier_model extends App_Model
                     $old_status = $con['status'];
 
                     if ($new_status !== $old_status) {
-                        $this->update_consignment_status($con['id'], $con['ecomcore_order_id'], $old_status, $new_status);
+                        $this->update_consignment_status($con['id'], $con['salesos_order_id'], $old_status, $new_status);
                         $sync_count++;
                     }
                 }
@@ -588,7 +588,7 @@ class Courier_model extends App_Model
                     elseif ($new_status_slug === 'order.returned') { $new_status = 'returned'; }
 
                     if ($new_status !== $old_status) {
-                        $this->update_consignment_status($con['id'], $con['ecomcore_order_id'], $old_status, $new_status);
+                        $this->update_consignment_status($con['id'], $con['salesos_order_id'], $old_status, $new_status);
                         $sync_count++;
                     }
                 }
@@ -635,7 +635,7 @@ class Courier_model extends App_Model
         if ($new_status !== null) {
             $old_status = $con['status'];
             if ($new_status !== $old_status) {
-                $this->update_consignment_status($con['id'], $con['ecomcore_order_id'], $old_status, $new_status);
+                $this->update_consignment_status($con['id'], $con['salesos_order_id'], $old_status, $new_status);
             }
             return $new_status;
         }
@@ -655,20 +655,20 @@ class Courier_model extends App_Model
             'last_synced_at' => date('Y-m-d H:i:s')
         ]);
 
-        // RESTOCK / MARK DELIVERED OR CANCELLED IN ECOMCORE
+        // RESTOCK / MARK DELIVERED OR CANCELLED IN SALESOS
         if ($new_status === 'delivered') {
             $this->db->where('id', $order_id);
-            $this->db->update($db_prefix . 'ecomcore_orders', [
+            $this->db->update($db_prefix . 'salesos_orders', [
                 'status' => 'delivered',
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
         } elseif ($new_status === 'cancelled' || $new_status === 'returned') {
             $this->db->where('id', $order_id);
-            $this->db->update($db_prefix . 'ecomcore_orders', [
+            $this->db->update($db_prefix . 'salesos_orders', [
                 'status' => 'cancelled',
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
-            hooks()->do_action('ecomcore_order_cancelled', $order_id);
+            hooks()->do_action('salesos_order_cancelled', $order_id);
         }
 
         hooks()->do_action('courier_consignment_status_changed', [
@@ -685,7 +685,7 @@ class Courier_model extends App_Model
     {
         $db_prefix = db_prefix();
         $this->db->where('id', $order_id);
-        $order = $this->db->get($db_prefix . 'ecomcore_orders')->row_array();
+        $order = $this->db->get($db_prefix . 'salesos_orders')->row_array();
         
         if (!$order) {
             return null;

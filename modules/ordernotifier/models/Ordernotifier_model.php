@@ -23,7 +23,7 @@ class Ordernotifier_model extends CI_Model
             ? "cc.tracking_id as courier_tracking_id, cc.status as courier_status, cc.courier_account_id as courier_account_id"
             : "NULL as courier_tracking_id, NULL as courier_status, NULL as courier_account_id";
         $courier_join = $courier_active
-            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.ecomcore_order_id = o.id"
+            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id"
             : "";
 
         $sql = "
@@ -39,7 +39,7 @@ class Ordernotifier_model extends CI_Model
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
                 {$courier_select}
-            FROM {$db_prefix}ecomcore_orders o
+            FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id

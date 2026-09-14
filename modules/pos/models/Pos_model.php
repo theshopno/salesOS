@@ -7,7 +7,7 @@ class Pos_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-        $this->load->model('ecomcore/ecomcore_model');
+        $this->load->model('salesos/salesos_model');
         $this->load->model('inventory/inventory_model');
         $this->load->model('invoices_model');
         $this->load->model('payments_model');
@@ -167,7 +167,7 @@ class Pos_model extends App_Model
             }
 
             // Reject the sale here, before any money is taken. Stock is actually
-            // deducted later by inventory's ecomcore_order_confirmed listener, which
+            // deducted later by inventory's salesos_order_confirmed listener, which
             // runs after the order is committed and so cannot refuse the sale itself.
             if (!$this->inventory_model->oversell_allowed()) {
                 // Deliberately the default warehouse, not the register's own
@@ -216,7 +216,7 @@ class Pos_model extends App_Model
 
         $total = ($subtotal - $discount_total) + $shipping;
 
-        // 3. Create Generic Order in Ecomcore
+        // 3. Create Generic Order in Salesos
         $generic_order = [
             'channel'         => 'pos',
             'channel_ref_id'  => null,
@@ -242,8 +242,8 @@ class Pos_model extends App_Model
             'items' => $generic_items,
         ];
 
-        // Ecomcore handles lead matching and stock hooks triggers
-        $ecomcore_order_id = $this->ecomcore_model->import_order($generic_order);
+        // Salesos handles lead matching and stock hooks triggers
+        $salesos_order_id = $this->salesos_model->import_order($generic_order);
 
         // 4. Create Core CRM Invoice
         $this->load->model('currencies_model');
@@ -304,7 +304,7 @@ class Pos_model extends App_Model
         $this->db->insert(db_prefix() . 'pos_sales', [
             'session_id'        => $session_id,
             'invoice_id'        => $invoice_id,
-            'ecomcore_order_id' => $ecomcore_order_id,
+            'salesos_order_id' => $salesos_order_id,
             'client_id'         => $client_id,
             'cashier_staff_id'  => get_staff_user_id(),
             'created_at'        => date('Y-m-d H:i:s'),

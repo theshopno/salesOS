@@ -39,7 +39,7 @@
                                         <tr>
                                             <td class="bold" width="40%">Associated Order ID:</td>
                                             <td>
-                                                <span class="label label-default">#<?= $return->ecomcore_order_id ?></span>
+                                                <span class="label label-default">#<?= $return->salesos_order_id ?></span>
                                                 <?php if ($return->channel): ?>
                                                     <span class="label label-info mleft5"><?= strtoupper($return->channel) ?></span>
                                                 <?php endif; ?>
@@ -79,7 +79,7 @@
                                         </tr>
                                         <tr>
                                             <td class="bold">Refund Amount:</td>
-                                            <td class="bold text-success"><?= ecomcore_format_number($return->refund_amount) ?> BDT</td>
+                                            <td class="bold text-success"><?= salesos_format_number($return->refund_amount) ?> BDT</td>
                                         </tr>
                                         <tr>
                                             <td class="bold">Reason:</td>
@@ -107,7 +107,7 @@
                                         <tr>
                                             <td><?= e($item['product_name']) ?></td>
                                             <td><code><?= e($item['product_sku'] ? $item['product_sku'] : 'None') ?></code></td>
-                                            <td class="text-center bold"><?= ecomcore_format_number($item['qty'], 0) ?></td>
+                                            <td class="text-center bold"><?= salesos_format_number($item['qty'], 0) ?></td>
                                             <td>
                                                 <?php if ($item['condition_note'] === 'sellable'): ?>
                                                     <span class="label label-success"><i class="fa fa-check"></i> Sellable (Restocked)</span>

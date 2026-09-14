@@ -89,7 +89,7 @@
                                                         $label_class = $sup['current_balance'] > 0 ? 'danger' : 'success';
                                                     ?>
                                                     <span class="label label-<?= $label_class ?>">
-                                                        <strong><?= ecomcore_format_number($sup['current_balance']) ?> BDT</strong>
+                                                        <strong><?= salesos_format_number($sup['current_balance']) ?> BDT</strong>
                                                     </span>
                                                 </td>
                                                 <td>

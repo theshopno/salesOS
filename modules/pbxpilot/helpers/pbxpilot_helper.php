@@ -31,7 +31,7 @@ function pbxpilot_update_option(string $key, $value): bool
 
 /**
  * Voice Escalation Bridge gate (§2, §6): pbxpilot_voice_escalation can only be
- * turned on once docs/ecomcore-ledger.md shows ecomcore Phase 1 and Phase 9
+ * turned on once docs/salesos-ledger.md shows salesos Phase 1 and Phase 9
  * both `Done`. Parses the ledger's phase table rather than trusting a cached
  * flag, since that file is the authoritative, live progress record.
  *
@@ -39,10 +39,10 @@ function pbxpilot_update_option(string $key, $value): bool
  */
 function pbxpilot_voice_escalation_gate_status(): array
 {
-    $ledger_path = FCPATH . 'docs/ecomcore-ledger.md';
+    $ledger_path = FCPATH . 'docs/salesos-ledger.md';
 
     if (!is_file($ledger_path)) {
-        return ['allowed' => false, 'reason' => 'docs/ecomcore-ledger.md not found — cannot verify ecomcore Phase 1/9 status.'];
+        return ['allowed' => false, 'reason' => 'docs/salesos-ledger.md not found — cannot verify salesos Phase 1/9 status.'];
     }
 
     $phase1_done = false;
@@ -73,12 +73,12 @@ function pbxpilot_voice_escalation_gate_status(): array
     }
 
     $missing = [];
-    if (!$phase1_done) $missing[] = 'ecomcore Phase 1 (ecomcore kernel)';
-    if (!$phase9_done) $missing[] = 'ecomcore Phase 9 (ordernotifier)';
+    if (!$phase1_done) $missing[] = 'salesos Phase 1 (salesos kernel)';
+    if (!$phase9_done) $missing[] = 'salesos Phase 9 (ordernotifier)';
 
     return [
         'allowed' => false,
         'reason'  => 'Cannot enable Voice Escalation yet — waiting on ' . implode(' and ', $missing)
-                   . ' to reach Done in docs/ecomcore-ledger.md.',
+                   . ' to reach Done in docs/salesos-ledger.md.',
     ];
 }

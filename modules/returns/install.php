@@ -12,7 +12,7 @@ $db_prefix = db_prefix();
 if (!$CI->db->table_exists($db_prefix . 'returns_orders')) {
     $res = $CI->db->query("CREATE TABLE `{$db_prefix}returns_orders` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
-        `ecomcore_order_id` INT(11) NOT NULL,
+        `salesos_order_id` INT(11) NOT NULL,
         `status` VARCHAR(30) NOT NULL DEFAULT 'requested', -- requested, approved, rejected, received, restocked, refunded
         `reason` VARCHAR(255) DEFAULT NULL,
         `requested_by` VARCHAR(20) NOT NULL DEFAULT 'customer', -- customer | staff
@@ -21,7 +21,7 @@ if (!$CI->db->table_exists($db_prefix . 'returns_orders')) {
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
-        KEY `ecomcore_order_id` (`ecomcore_order_id`),
+        KEY `salesos_order_id` (`salesos_order_id`),
         KEY `status` (`status`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     if (!$res) {
@@ -35,7 +35,7 @@ if (!$CI->db->table_exists($db_prefix . 'returns_order_items')) {
     $res = $CI->db->query("CREATE TABLE `{$db_prefix}returns_order_items` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `return_order_id` INT(11) NOT NULL,
-        `order_item_id` INT(11) NOT NULL, -- FK tblecomcore_order_items.id
+        `order_item_id` INT(11) NOT NULL, -- FK tblsalesos_order_items.id
         `qty` DECIMAL(15,2) NOT NULL DEFAULT 1.00,
         `condition_note` VARCHAR(20) NOT NULL DEFAULT 'sellable', -- sellable | damaged
         PRIMARY KEY (`id`),

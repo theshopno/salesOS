@@ -122,7 +122,7 @@ class Settings extends AdminController
         foreach (self::TOGGLE_KEYS as $key) {
             $val = $this->input->post($key) ? '1' : '0';
 
-            // Refuse to enable the gated flag until ecomcore's ledger says it's
+            // Refuse to enable the gated flag until salesos's ledger says it's
             // ready — never silently ignore, tell the operator why (§6).
             if ($key === 'pbxpilot_voice_escalation' && $val === '1' && !$gate['allowed']) {
                 set_alert('warning', $gate['reason']);

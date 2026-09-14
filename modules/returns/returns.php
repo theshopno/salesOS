@@ -27,8 +27,8 @@ hooks()->add_action('admin_init', 'returns_register_permissions');
 function returns_load_resources(): void
 {
     $CI = &get_instance();
-    // Soft guard: fail soft if ecomcore is not active
-    if (!$CI->app_modules->is_active('ecomcore')) {
+    // Soft guard: fail soft if salesos is not active
+    if (!$CI->app_modules->is_active('salesos')) {
         return;
     }
     $CI->load->model(RETURNS_MODULE_NAME . '/returns_model');
@@ -51,14 +51,14 @@ function returns_register_permissions(): void
 function returns_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) {
+    if (!$CI->app_modules->is_active('salesos')) {
         return;
     }
     if (!staff_can('view', RETURNS_MODULE_NAME)) {
         return;
     }
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'returns-list',
         'name'     => 'Returns List',
         'href'     => admin_url('returns'),

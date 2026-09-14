@@ -23,7 +23,7 @@
                             <thead>
                                 <tr>
                                     <th>Return ID</th>
-                                    <th>Ecomcore Order ID</th>
+                                    <th>Salesos Order ID</th>
                                     <th>Channel</th>
                                     <th>Reason</th>
                                     <th>Requested By</th>
@@ -43,7 +43,7 @@
                                         </td>
                                         <td>
                                             <span class="label label-default">
-                                                #<?= $ret['ecomcore_order_id'] ?>
+                                                #<?= $ret['salesos_order_id'] ?>
                                             </span>
                                             <?php if ($ret['channel_ref_id']): ?>
                                                 <small class="text-muted display-block">Ref: <?= e($ret['channel_ref_id']) ?></small>
@@ -56,7 +56,7 @@
                                         </td>
                                         <td><?= e($ret['reason']) ?></td>
                                         <td><?= e(ucfirst($ret['requested_by'])) ?></td>
-                                        <td class="bold"><?= ecomcore_format_number($ret['refund_amount']) ?> BDT</td>
+                                        <td class="bold"><?= salesos_format_number($ret['refund_amount']) ?> BDT</td>
                                         <td>
                                             <?php
                                                 $status = $ret['status'];

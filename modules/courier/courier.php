@@ -29,7 +29,7 @@ hooks()->add_action('after_cron_run', 'courier_handle_cron_sync');
 function courier_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) {
+    if (!$CI->app_modules->is_active('salesos')) {
         return;
     }
     $CI->load->model(COURIER_MODULE_NAME . '/courier_model');

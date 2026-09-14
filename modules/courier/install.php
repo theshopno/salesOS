@@ -14,7 +14,7 @@ if (!$CI->db->table_exists($db_prefix . 'courier_accounts')) {
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `provider` VARCHAR(30) NOT NULL, -- 'steadfast' | 'pathao' | 'redx'
         `label` VARCHAR(150) NOT NULL,
-        `credential_id` INT(11) NOT NULL, -- FK tblecomcore_credentials.id
+        `credential_id` INT(11) NOT NULL, -- FK tblsalesos_credentials.id
         `pickup_address` TEXT DEFAULT NULL,
         `is_default` TINYINT(1) NOT NULL DEFAULT 0,
         `is_active` TINYINT(1) NOT NULL DEFAULT 1,
@@ -32,7 +32,7 @@ if (!$CI->db->table_exists($db_prefix . 'courier_accounts')) {
 if (!$CI->db->table_exists($db_prefix . 'courier_consignments')) {
     $res = $CI->db->query("CREATE TABLE `{$db_prefix}courier_consignments` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
-        `ecomcore_order_id` INT(11) NOT NULL,
+        `salesos_order_id` INT(11) NOT NULL,
         `courier_account_id` INT(11) NOT NULL,
         `consignment_id` VARCHAR(100) DEFAULT NULL,
         `tracking_id` VARCHAR(100) DEFAULT NULL,
@@ -42,7 +42,7 @@ if (!$CI->db->table_exists($db_prefix . 'courier_consignments')) {
         `last_synced_at` DATETIME DEFAULT NULL,
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
-        KEY `ecomcore_order_id` (`ecomcore_order_id`),
+        KEY `salesos_order_id` (`salesos_order_id`),
         KEY `status` (`status`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     if (!$res) {

@@ -8,11 +8,11 @@ class Courier extends AdminController
     {
         parent::__construct();
         $this->load->model('courier_model');
-        $this->load->model('ecomcore/ecomcore_model');
+        $this->load->model('salesos/salesos_model');
     }
 
     /**
-     * List & configure Courier Settings (Handles Form Submission, Redirects to Unified Ecomcore Settings Page)
+     * List & configure Courier Settings (Handles Form Submission, Redirects to Unified Salesos Settings Page)
      */
     public function settings()
     {
@@ -37,7 +37,7 @@ class Courier extends AdminController
                 set_alert('danger', $e->getMessage());
             }
         }
-        redirect(admin_url('ecomcore/settings?tab=couriers'));
+        redirect(admin_url('salesos/settings?tab=couriers'));
     }
 
     /**
@@ -54,7 +54,7 @@ class Courier extends AdminController
         } else {
             set_alert('danger', 'Failed to delete courier account.');
         }
-        redirect(admin_url('ecomcore/settings?tab=couriers'));
+        redirect(admin_url('salesos/settings?tab=couriers'));
     }
 
     // ── Pathao Dynamic AJAX Endpoints ─────────────────────────────────────────
@@ -101,7 +101,7 @@ class Courier extends AdminController
 
         if ($this->input->post()) {
             try {
-                $order_id      = (int) $this->input->post('ecomcore_order_id');
+                $order_id      = (int) $this->input->post('salesos_order_id');
                 $account_id    = (int) $this->input->post('courier_account_id');
                 $cod_amount    = (float) $this->input->post('cod_amount');
                 $notes         = $this->input->post('notes');

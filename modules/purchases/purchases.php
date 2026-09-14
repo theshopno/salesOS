@@ -28,7 +28,7 @@ hooks()->add_action('admin_init', 'purchases_register_permissions');
 function purchases_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
     $CI->load->model(PURCHASES_MODULE_NAME . '/purchases_model');
 }
 
@@ -50,17 +50,17 @@ function purchases_register_permissions(): void
 function purchases_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
     if (!staff_can('view', PURCHASES_MODULE_NAME)) { return; }
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'purchases-orders', 
         'name'     => 'Purchase Orders',
         'href'     => admin_url('purchases/purchase_orders'), 
         'position' => 15,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'purchases-suppliers', 
         'name'     => 'Suppliers',
         'href'     => admin_url('purchases/suppliers'), 

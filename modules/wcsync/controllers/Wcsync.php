@@ -33,7 +33,7 @@ class Wcsync extends AdminController
         $this->db->select('wo.*, s.name as site_name, eo.status as eco_status, eo.total as eco_total');
         $this->db->from(db_prefix() . 'wcsync_orders wo');
         $this->db->join(db_prefix() . 'wcsync_sites s', 's.id = wo.site_id');
-        $this->db->join(db_prefix() . 'ecomcore_orders eo', 'eo.id = wo.ecomcore_order_id');
+        $this->db->join(db_prefix() . 'salesos_orders eo', 'eo.id = wo.salesos_order_id');
         $this->db->order_by('wo.synced_at', 'desc');
         $this->db->limit(15);
         $data['recent_syncs'] = $this->db->get()->result_array();
@@ -62,7 +62,7 @@ class Wcsync extends AdminController
             $credential_id = (int) $this->input->post('credential_id');
             $this->db->where('id', $credential_id);
             $this->db->where('owner_module', 'wcsync');
-            $credential = $this->db->get(db_prefix() . 'ecomcore_credentials')->row();
+            $credential = $this->db->get(db_prefix() . 'salesos_credentials')->row();
             if (!$credential) {
                 set_alert('danger', 'Selected credential is invalid or does not belong to WooCommerce Sync.');
                 redirect(admin_url('wcsync/settings'));
@@ -79,7 +79,7 @@ class Wcsync extends AdminController
         $data['sites'] = $this->wcsync_model->get_sites();
 
         // Load credentials from vault belonging to wcsync
-        $data['credentials'] = $this->db->get_where(db_prefix() . 'ecomcore_credentials', [
+        $data['credentials'] = $this->db->get_where(db_prefix() . 'salesos_credentials', [
             'owner_module' => 'wcsync',
             'is_active'    => 1
         ])->result_array();

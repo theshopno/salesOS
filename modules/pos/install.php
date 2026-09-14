@@ -43,14 +43,14 @@ if (!$CI->db->table_exists($db_prefix . 'pos_sales')) {
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `session_id` INT(11) NOT NULL,
         `invoice_id` INT(11) NOT NULL,
-        `ecomcore_order_id` INT(11) DEFAULT NULL,
+        `salesos_order_id` INT(11) DEFAULT NULL,
         `client_id` INT(11) DEFAULT NULL,
         `cashier_staff_id` INT(11) NOT NULL,
         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
         KEY `session_id` (`session_id`),
         KEY `invoice_id` (`invoice_id`),
-        KEY `ecomcore_order_id` (`ecomcore_order_id`)
+        KEY `salesos_order_id` (`salesos_order_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
 

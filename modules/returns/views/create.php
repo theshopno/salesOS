@@ -16,12 +16,12 @@
 
                         <!-- 1. Select Order -->
                         <div class="form-group">
-                            <label for="ecomcore_order_id" class="control-label">Select Confirmed Order</label>
-                            <select name="ecomcore_order_id" id="ecomcore_order_id" class="form-control selectpicker" data-live-search="true" required>
+                            <label for="salesos_order_id" class="control-label">Select Confirmed Order</label>
+                            <select name="salesos_order_id" id="salesos_order_id" class="form-control selectpicker" data-live-search="true" required>
                                 <option value="">Select Order...</option>
                                 <?php foreach ($orders as $ord): ?>
                                     <option value="<?= $ord['id'] ?>">
-                                        Order #<?= $ord['id'] ?> (Channel: <?= strtoupper($ord['channel']) ?> - Ref: <?= $ord['channel_ref_id'] ? $ord['channel_ref_id'] : 'None' ?>) - Total: <?= ecomcore_format_number($ord['total']) ?> BDT (Date: <?= _dt($ord['created_at']) ?>)
+                                        Order #<?= $ord['id'] ?> (Channel: <?= strtoupper($ord['channel']) ?> - Ref: <?= $ord['channel_ref_id'] ? $ord['channel_ref_id'] : 'None' ?>) - Total: <?= salesos_format_number($ord['total']) ?> BDT (Date: <?= _dt($ord['created_at']) ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
@@ -98,7 +98,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var orderSelect = document.getElementById('ecomcore_order_id');
+    var orderSelect = document.getElementById('salesos_order_id');
     var itemsWrapper = document.getElementById('order-items-wrapper');
     var tableBody = document.querySelector('#return-items-table tbody');
 

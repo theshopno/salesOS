@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 Module Name: WooCommerce Sync (wcsync)
-Description: WooCommerce channel connector module (syncs orders via REST API into ecomcore kernel, manages site credentials).
+Description: WooCommerce channel connector module (syncs orders via REST API into salesos kernel, manages site credentials).
 Version: 1.0.0
 Requires at least: 2.3.4
 */
@@ -29,7 +29,7 @@ hooks()->add_action('after_cron_run', 'wcsync_cron_run');
 function wcsync_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     $CI->load->model(WCSYNC_MODULE_NAME . '/wcsync_model');
 }
 
@@ -49,17 +49,17 @@ function wcsync_register_permissions(): void
 function wcsync_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore')) { return; } // Guard
+    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     if (!staff_can('view', WCSYNC_MODULE_NAME)) { return; }
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'wcsync-dashboard', 
         'name'     => 'WooCommerce Sync',
         'href'     => admin_url('wcsync'), 
         'position' => 20,
     ]);
 
-    $CI->app_menu->add_sidebar_children_item('ecomcore', [
+    $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'wcsync-settings', 
         'name'     => 'WC Settings',
         'href'     => admin_url('wcsync/settings'), 
@@ -71,7 +71,7 @@ function wcsync_register_menu(): void
 function wcsync_cron_run(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('ecomcore') || !$CI->app_modules->is_active('wcsync')) { return; }
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active('wcsync')) { return; }
     
     $CI->load->model('wcsync/wcsync_model');
     
