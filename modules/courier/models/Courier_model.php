@@ -93,12 +93,11 @@ class Courier_model extends App_Model
 
         if ($id) {
             $this->db->where('id', $id);
-            $account = $this->db->get($db_prefix . 'courier_accounts')->row();
+            $account = $this->db->get($db_prefix . 'courier_accounts')->row_array();
             if ($account) {
                 $this->db->where('id', $account['credential_id']);
                 $this->db->update($db_prefix . 'salesos_credentials', [
                     'payload' => $encrypted,
-                    'updated_at' => date('Y-m-d H:i:s')
                 ]);
                 $cred_id = $account['credential_id'];
             }
