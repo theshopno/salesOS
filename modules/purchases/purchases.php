@@ -59,6 +59,6 @@ function purchases_register_menu(): void
         'name'     => 'Purchase Orders',
         'href'     => admin_url('purchases/purchase_orders'),
         // Restocking is regular work; supplier records are not.
-        'position' => 5,
+        'position' => 6,
     ]);
 }

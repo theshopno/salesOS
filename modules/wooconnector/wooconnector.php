@@ -27,7 +27,12 @@ function wooconnector_activation_hook(): void
 hooks()->add_action('app_init',      'wooconnector_load_resources');
 hooks()->add_action('admin_init',    'wooconnector_register_menu');
 hooks()->add_action('admin_init',    'wooconnector_register_permissions');
-hooks()->add_action('after_cron_run', 'wooconnector_cron');
+// Retired. WooCommerce is served by the wcsync connector on the shared channel
+// contract, which also covers the confirmation call this module was built for —
+// see modules/salesos/CHANNEL_CONNECTOR.md. Its cron is disconnected so the two
+// cannot import the same order twice; the module's own screens and data stay
+// reachable so an existing install can be read and migrated.
+// hooks()->add_action('after_cron_run', 'wooconnector_cron');
 hooks()->add_action('lead_status_changed', 'wooconnector_on_lead_status_changed');
 
 function wooconnector_load_resources(): void

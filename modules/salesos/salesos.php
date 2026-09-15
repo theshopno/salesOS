@@ -114,6 +114,17 @@ function salesos_register_menu(): void
             'href'     => admin_url('salesos/orders'),
             'position' => 2,
         ]);
+
+        // Only when orders are actually held for a call — otherwise the queue is
+        // permanently empty and just takes up a row.
+        if (salesos_order_confirmation_required()) {
+            $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
+                'slug'     => 'salesos-confirmations',
+                'name'     => 'Confirmations',
+                'href'     => admin_url('salesos/confirmations'),
+                'position' => 3,
+            ]);
+        }
     }
 
     if (staff_can('settings', SALESOS_MODULE_NAME)) {

@@ -107,6 +107,57 @@ class Salesos extends AdminController
         $this->load->view('salesos/dashboard', $data);
     }
 
+    /**
+     * The confirmation queue: orders waiting on a phone call before they are
+     * allowed to reach stock, courier and notifications.
+     */
+    public function confirmations()
+    {
+        salesos_require_ecommerce();
+
+        if (!staff_can('view', 'salesos')) {
+            access_denied('Order Confirmations');
+        }
+
+        if (!salesos_order_confirmation_required()) {
+            set_alert('warning', 'Order confirmation is switched off, so nothing is held for a call. Turn it on in Settings to use this queue.');
+            redirect(admin_url('salesos/orders'));
+        }
+
+        $data['title']   = 'Order Confirmations';
+        $data['orders']  = $this->salesos_model->get_confirmation_queue();
+        $data['waiting'] = $this->salesos_model->count_confirmation_queue();
+        $data['stats']   = $this->salesos_model->get_confirmation_stats(
+            date('Y-m-d', strtotime('-6 days')),
+            date('Y-m-d')
+        );
+
+        $this->load->view('salesos/confirmations', $data);
+    }
+
+    /** Record a call outcome. Confirming is what releases the order downstream. */
+    public function confirm_order($id)
+    {
+        salesos_require_ecommerce();
+
+        if (!staff_can('edit', 'salesos') && !staff_can('view', 'salesos')) {
+            access_denied('Order Confirmations');
+        }
+
+        $outcome = $this->input->post('outcome');
+        $note    = trim((string) $this->input->post('note'));
+
+        if ($this->salesos_model->record_confirmation((int) $id, (string) $outcome, $note)) {
+            set_alert('success', $outcome === 'confirmed'
+                ? 'Order confirmed and released for fulfilment.'
+                : 'Order cancelled.');
+        } else {
+            set_alert('danger', 'That order is no longer waiting for a call.');
+        }
+
+        redirect(admin_url('salesos/confirmations'));
+    }
+
     public function settings()
     {
         if (!staff_can('settings', 'salesos')) {
@@ -119,6 +170,8 @@ class Salesos extends AdminController
             if ($this->input->post('general_settings')) {
                 $enabled = $this->input->post('salesos_ecommerce_enabled') ? '1' : '0';
                 update_option('salesos_ecommerce_enabled', $enabled);
+                update_option('salesos_require_order_confirmation',
+                    $this->input->post('salesos_require_order_confirmation') ? '1' : '0');
                 set_alert('success', $enabled === '1'
                     ? 'E-commerce features turned on.'
                     : 'E-commerce features turned off. Telephony is unaffected, and nothing has been deleted.');

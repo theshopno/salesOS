@@ -66,14 +66,14 @@ function inventory_register_menu(): void
         'slug'     => 'inventory-products',
         'name'     => 'Products',
         'href'     => admin_url('inventory/products'),
-        'position' => 4,
+        'position' => 5,
     ]);
 
     $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'inventory-adjustments',
         'name'     => 'Stock Ledger',
         'href'     => admin_url('inventory/adjustments'),
-        'position' => 7,
+        'position' => 8,
     ]);
 }
 

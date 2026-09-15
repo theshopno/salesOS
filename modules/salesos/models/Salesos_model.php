@@ -308,6 +308,196 @@ class Salesos_model extends App_Model
             ->update(db_prefix() . 'salesos_channel_sites', ['last_synced_at' => date('Y-m-d H:i:s')]);
     }
 
+    // ── Confirmation queue ────────────────────────────────────────────────────
+
+    /**
+     * Orders waiting on a confirmation call, oldest first — the oldest order is
+     * the one a customer has been waiting on longest, so it is called first.
+     *
+     * Carries the customer's phone and, when fraudcheck is installed, the risk
+     * it already knows about that number: the agent needs both on the row they
+     * are about to dial, not a click away.
+     */
+    public function get_confirmation_queue(int $limit = 100): array
+    {
+        $prefix = db_prefix();
+
+        $sql = "SELECT o.id, o.channel, o.channel_ref_id, o.channel_status, o.total, o.currency,
+                       o.payment_method, o.order_note, o.order_date, o.created_at,
+                       s.name AS site_name,
+                       COALESCE(NULLIF(TRIM(CONCAT(con.firstname,' ',con.lastname)),''), c.company, l.name, 'Guest') AS customer_name,
+                       COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') AS customer_phone,
+                       COALESCE(c.address, l.address, '') AS customer_address
+                FROM {$prefix}salesos_orders o
+                LEFT JOIN {$prefix}salesos_channel_sites s ON s.id = o.channel_site_id
+                LEFT JOIN {$prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+                LEFT JOIN {$prefix}clients c ON c.userid = o.client_id
+                LEFT JOIN {$prefix}leads l ON l.id = o.lead_id
+                WHERE o.status = 'pending'
+                ORDER BY o.order_date ASC, o.id ASC
+                LIMIT ?";
+
+        $orders = $this->db->query($sql, [$limit])->result_array();
+
+        foreach ($orders as &$order) {
+            $order['items'] = $this->get_order_items((int) $order['id']);
+        }
+        unset($order);
+
+        return $this->attach_fraud_history($orders);
+    }
+
+    /**
+     * Add each order's COD delivery history from fraudcheck, if it is installed.
+     *
+     * Deliberately a second query rather than a join: fraudcheck stores the phone
+     * in its own normalised form, and matching it in SQL means comparing a
+     * computed expression against a column whose collation need not match — which
+     * fails outright on some installs. One batched lookup is portable and still
+     * costs a single query however long the queue is.
+     */
+    private function attach_fraud_history(array $orders): array
+    {
+        $prefix = db_prefix();
+
+        foreach ($orders as &$order) {
+            $order['fraud_ratio'] = null;
+            $order['fraud_risk']  = null;
+            $order['fraud_color'] = null;
+        }
+        unset($order);
+
+        $CI = &get_instance();
+        if (!$orders
+            || !$this->db->table_exists($prefix . 'fraudcheck_lookups')
+            || !$CI->app_modules->is_active('fraudcheck')) {
+            return $orders;
+        }
+
+        $CI->load->model('fraudcheck/fraudcheck_model');
+
+        $phones = [];
+        foreach ($orders as &$order) {
+            $order['phone_normalised'] = $order['customer_phone'] !== ''
+                ? $CI->fraudcheck_model->normalize_phone($order['customer_phone'])
+                : '';
+            if ($order['phone_normalised'] !== '') {
+                $phones[] = $order['phone_normalised'];
+            }
+        }
+        unset($order);
+
+        if (!$phones) {
+            return $orders;
+        }
+
+        $lookups = [];
+        foreach ($this->db->select('phone, success_ratio, risk_level, risk_color')
+                     ->where_in('phone', array_unique($phones))
+                     ->get($prefix . 'fraudcheck_lookups')
+                     ->result_array() as $row) {
+            $lookups[$row['phone']] = $row;
+        }
+
+        foreach ($orders as &$order) {
+            $hit = $lookups[$order['phone_normalised']] ?? null;
+            if ($hit) {
+                $order['fraud_ratio'] = $hit['success_ratio'];
+                $order['fraud_risk']  = $hit['risk_level'];
+                $order['fraud_color'] = $hit['risk_color'];
+            }
+        }
+        unset($order);
+
+        return $orders;
+    }
+
+    public function count_confirmation_queue(): int
+    {
+        return (int) $this->db->where('status', 'pending')
+            ->count_all_results(db_prefix() . 'salesos_orders');
+    }
+
+    /**
+     * Record the outcome of a confirmation call.
+     *
+     * Confirming is what releases the order to the rest of the system: the
+     * kernel's own status change fires the events stock, courier and
+     * notifications are already listening for, so nothing extra is wired here.
+     *
+     * @param string $outcome confirmed|cancelled
+     */
+    public function record_confirmation(int $order_id, string $outcome, string $note = ''): bool
+    {
+        if (!in_array($outcome, ['confirmed', 'cancelled'], true)) {
+            return false;
+        }
+
+        $order = $this->get_order($order_id);
+        if (!$order || $order['status'] !== 'pending') {
+            return false;
+        }
+
+        $this->log_event('order.call_' . $outcome, 'order', $order_id, [
+            'staff_id' => get_staff_user_id() ?: null,
+            'note'     => $note,
+        ]);
+
+        if ($note !== '') {
+            $this->db->where('id', $order_id)->update(db_prefix() . 'salesos_orders', [
+                'order_note' => trim(($order['order_note'] ?? '') . "\n[call] " . $note),
+            ]);
+        }
+
+        return $this->set_order_status($order_id, $outcome);
+    }
+
+    /**
+     * Confirmation-call activity per day, and per agent, for a date range —
+     * what a telesales team is measured on.
+     */
+    public function get_confirmation_stats(string $from, string $to): array
+    {
+        $prefix = db_prefix();
+
+        $rows = $this->db->query(
+            "SELECT DATE(created_at) AS day, event_type, payload
+             FROM {$prefix}salesos_events
+             WHERE event_type IN ('order.call_confirmed','order.call_cancelled')
+               AND created_at BETWEEN ? AND ?
+             ORDER BY created_at ASC",
+            [$from . ' 00:00:00', $to . ' 23:59:59']
+        )->result_array();
+
+        $daily  = [];
+        $agents = [];
+
+        foreach ($rows as $row) {
+            $day     = $row['day'];
+            $outcome = $row['event_type'] === 'order.call_confirmed' ? 'confirmed' : 'cancelled';
+
+            $daily[$day] = $daily[$day] ?? ['day' => $day, 'confirmed' => 0, 'cancelled' => 0];
+            $daily[$day][$outcome]++;
+
+            $staff_id = json_decode($row['payload'] ?? '', true)['staff_id'] ?? null;
+            if ($staff_id) {
+                $agents[$staff_id] = $agents[$staff_id] ?? ['staff_id' => $staff_id, 'confirmed' => 0, 'cancelled' => 0];
+                $agents[$staff_id][$outcome]++;
+            }
+        }
+
+        foreach ($agents as $id => &$agent) {
+            $staff = $this->db->select('firstname, lastname')->where('staffid', $id)
+                ->get($prefix . 'staff')->row();
+            $agent['name'] = $staff ? trim($staff->firstname . ' ' . $staff->lastname) : ('Staff #' . $id);
+            $total = $agent['confirmed'] + $agent['cancelled'];
+            $agent['rate'] = $total > 0 ? round($agent['confirmed'] / $total * 100) : 0;
+        }
+        unset($agent);
+
+        return ['daily' => array_values($daily), 'agents' => array_values($agents)];
+    }
+
     // ── Catalogue matching ────────────────────────────────────────────────────
 
     /**

@@ -84,6 +84,30 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                         </p>
 
                                         <hr class="hr-panel-heading" />
+
+                                        <div class="checkbox checkbox-primary">
+                                            <input type="checkbox"
+                                                   name="salesos_require_order_confirmation"
+                                                   id="salesos_require_order_confirmation"
+                                                   value="1"
+                                                   <?= get_option('salesos_require_order_confirmation') !== '0' ? 'checked' : '' ?>>
+                                            <label for="salesos_require_order_confirmation">
+                                                Hold channel orders for a confirmation call
+                                            </label>
+                                        </div>
+
+                                        <p class="text-muted">
+                                            On (recommended for cash on delivery): an order from a connected
+                                            store waits in <strong>Confirmations</strong> until someone phones
+                                            the customer. Only then does it reach stock, courier booking and
+                                            notifications.
+                                        </p>
+                                        <p class="text-muted">
+                                            Off: orders go straight to whatever status the store reports.
+                                            Suitable when payment is taken online before shipping.
+                                        </p>
+
+                                        <hr class="hr-panel-heading" />
                                         <button type="submit" class="btn btn-info">Save</button>
                                         <?= form_close() ?>
                                     </div>

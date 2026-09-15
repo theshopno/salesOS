@@ -56,8 +56,8 @@ function pos_register_menu(): void
         'name'     => 'POS Sale',
         'href'     => admin_url('pos'),
         // The counter screen — for a shop seller this is the most-opened page
-        // in the whole product, so it sits third, not last.
-        'position' => 3,
+        // in the whole product, so it sits near the top, not last.
+        'position' => 4,
     ]);
 
 }
