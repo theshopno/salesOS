@@ -7,6 +7,7 @@ class Returns extends AdminController
     public function __construct()
     {
         parent::__construct();
+        salesos_require_ecommerce();
         $this->load->model('returns_model');
         $this->load->model('salesos/salesos_model');
     }

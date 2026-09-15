@@ -67,6 +67,10 @@ foreach ([
 // this file sees the database as it actually is now.
 $CI->db->data_cache = [];
 
+// Feature switch for the whole e-commerce side. On by default; an install that
+// only wants telephony turns it off in SalesOS → Settings → General.
+add_option('salesos_ecommerce_enabled', '1');
+
 // 1. Credentials table
 if (!$CI->db->table_exists($db_prefix . 'salesos_credentials')) {
     $CI->db->query("CREATE TABLE `{$db_prefix}salesos_credentials` (

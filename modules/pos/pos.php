@@ -48,6 +48,7 @@ function pos_register_menu(): void
 {
     $CI = &get_instance();
     if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
+    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
     if (!staff_can('view', POS_MODULE_NAME)) { return; }
 
     $CI->app_menu->add_sidebar_children_item('salesos', [

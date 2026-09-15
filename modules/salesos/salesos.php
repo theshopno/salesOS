@@ -32,6 +32,34 @@ function salesos_load_resources(): void
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────────
+/**
+ * Is the e-commerce side switched on?
+ *
+ * An install that only wants telephony turns this off rather than hunting
+ * through Setup → Modules for nine separate modules. The modules stay installed
+ * and keep their data; they just stop appearing and stop serving pages, so
+ * turning it back on restores everything exactly as it was.
+ */
+function salesos_ecommerce_enabled(): bool
+{
+    return get_option('salesos_ecommerce_enabled') !== '0';
+}
+
+/**
+ * Guard for controllers that only make sense when e-commerce is on. The kernel's
+ * own settings screen deliberately does NOT call this — that is where the switch
+ * lives, so blocking it would leave no way back.
+ */
+function salesos_require_ecommerce(): void
+{
+    if (salesos_ecommerce_enabled()) {
+        return;
+    }
+
+    set_alert('warning', 'E-commerce features are turned off. You can turn them back on in SalesOS → Settings.');
+    redirect(admin_url('salesos/settings'));
+}
+
 function salesos_register_permissions(): void
 {
     register_staff_capabilities('salesos', [
@@ -58,7 +86,9 @@ function salesos_register_menu(): void
     // working day, ordered by how often that happens. Positions 1-9 are reserved
     // for those screens; anything configured once and then left alone lives
     // behind Settings instead (see salesos/views/settings.php).
-    if (staff_can('view', SALESOS_MODULE_NAME)) {
+    // With e-commerce switched off only Settings remains, so the switch itself
+    // stays reachable — hiding it too would be a one-way door.
+    if (staff_can('view', SALESOS_MODULE_NAME) && salesos_ecommerce_enabled()) {
         $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
             'slug'     => 'salesos-dashboard',
             'name'     => 'Dashboard',

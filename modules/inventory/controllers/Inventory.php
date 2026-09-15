@@ -7,6 +7,7 @@ class Inventory extends AdminController
     public function __construct()
     {
         parent::__construct();
+        salesos_require_ecommerce();
         $this->load->model('inventory_model');
         if (!staff_can('view', 'inventory')) {
             access_denied('Inventory Management');

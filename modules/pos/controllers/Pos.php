@@ -7,6 +7,7 @@ class Pos extends AdminController
     public function __construct()
     {
         parent::__construct();
+        salesos_require_ecommerce();
         $this->load->model('pos_model');
 
         // POS sells stock the inventory module owns — without it, every screen

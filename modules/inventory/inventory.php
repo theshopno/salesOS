@@ -56,6 +56,7 @@ function inventory_register_menu(): void
 {
     $CI = &get_instance();
     if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
+    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
     if (!staff_can('view', INVENTORY_MODULE_NAME)) { return; }
 
     // Only the two screens used during normal stock work stay in main

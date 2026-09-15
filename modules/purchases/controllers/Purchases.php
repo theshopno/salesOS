@@ -7,6 +7,7 @@ class Purchases extends AdminController
     public function __construct()
     {
         parent::__construct();
+        salesos_require_ecommerce();
         $this->load->model('purchases_model');
         if (!staff_can('view', 'purchases')) {
             access_denied('Purchases Management');

@@ -13,6 +13,10 @@ class Salesos extends AdminController
 
     public function index()
     {
+        // Guarded per method rather than in the constructor: settings() is where
+        // e-commerce gets switched back on, so it must stay reachable.
+        salesos_require_ecommerce();
+
         if (!staff_can('view', 'salesos')) {
             access_denied('Salesos Dashboard');
         }
@@ -112,6 +116,15 @@ class Salesos extends AdminController
         $data['title'] = 'E-commerce Settings';
 
         if ($this->input->post()) {
+            if ($this->input->post('general_settings')) {
+                $enabled = $this->input->post('salesos_ecommerce_enabled') ? '1' : '0';
+                update_option('salesos_ecommerce_enabled', $enabled);
+                set_alert('success', $enabled === '1'
+                    ? 'E-commerce features turned on.'
+                    : 'E-commerce features turned off. Telephony is unaffected, and nothing has been deleted.');
+                redirect(admin_url('salesos/settings?tab=general'));
+            }
+
             if ($this->input->post('notifications_settings')) {
                 $options = [
                     'ordernotifier_whatsapp_enabled',
@@ -303,6 +316,8 @@ class Salesos extends AdminController
      */
     public function orders()
     {
+        salesos_require_ecommerce();
+
         if (!staff_can('view', 'salesos')) {
             access_denied('Salesos Orders');
         }

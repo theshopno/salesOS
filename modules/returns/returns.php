@@ -54,6 +54,7 @@ function returns_register_menu(): void
     if (!$CI->app_modules->is_active('salesos')) {
         return;
     }
+    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
     if (!staff_can('view', RETURNS_MODULE_NAME)) {
         return;
     }

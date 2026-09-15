@@ -16,6 +16,11 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                     <div class="scroller scroller-left" style="display: none;"><i class="fa fa-chevron-left"></i></div>
                     <div class="scroller scroller-right" style="display: none;"><i class="fa fa-chevron-right"></i></div>
                     <ul class="nav nav-tabs nav-tabs-horizontal" role="tablist">
+                        <li role="presentation" class="<?= $active_tab === 'general' ? 'active' : '' ?>">
+                            <a href="#general" aria-controls="general" role="tab" data-toggle="tab">
+                                <i class="fa fa-power-off"></i> General
+                            </a>
+                        </li>
                         <li role="presentation" class="<?= $active_tab === 'channels' ? 'active' : '' ?>">
                             <a href="#channels" aria-controls="channels" role="tab" data-toggle="tab">
                                 <i class="fa fa-plug"></i> Channel Integrations
@@ -41,6 +46,52 @@ $active_tab = $this->input->get('tab') ?: 'channels';
 
                 <!-- Tab Panes Content -->
                 <div class="tab-content">
+
+                    <!-- TAB 0: GENERAL -->
+                    <div role="tabpanel" class="tab-pane <?= $active_tab === 'general' ? 'active' : '' ?>" id="general">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="panel_s">
+                                    <div class="panel-body">
+                                        <h4 class="no-margin font-medium">
+                                            <i class="fa fa-power-off"></i> E-commerce Features
+                                        </h4>
+                                        <hr class="hr-panel-heading" />
+
+                                        <?= form_open(admin_url('salesos/settings')) ?>
+                                        <input type="hidden" name="general_settings" value="1">
+
+                                        <div class="checkbox checkbox-primary">
+                                            <input type="checkbox"
+                                                   name="salesos_ecommerce_enabled"
+                                                   id="salesos_ecommerce_enabled"
+                                                   value="1"
+                                                   <?= salesos_ecommerce_enabled() ? 'checked' : '' ?>>
+                                            <label for="salesos_ecommerce_enabled">
+                                                Enable orders, POS, inventory, purchases, returns, courier and WooCommerce
+                                            </label>
+                                        </div>
+
+                                        <p class="text-muted">
+                                            Turn this off on an install that only uses the phone system. The
+                                            e-commerce screens disappear from the menu and stop opening, while
+                                            call handling, call logs and agents carry on untouched.
+                                        </p>
+                                        <p class="text-muted">
+                                            Nothing is deleted — orders, stock and settings all stay where they
+                                            are, and turning this back on restores everything exactly as it was.
+                                            This page stays reachable either way.
+                                        </p>
+
+                                        <hr class="hr-panel-heading" />
+                                        <button type="submit" class="btn btn-info">Save</button>
+                                        <?= form_close() ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     
                     <!-- TAB 1: CHANNEL INTEGRATIONS -->
                     <div role="tabpanel" class="tab-pane <?= $active_tab === 'channels' ? 'active' : '' ?>" id="channels">

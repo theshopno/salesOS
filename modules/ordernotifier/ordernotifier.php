@@ -29,6 +29,9 @@ hooks()->add_action('salesos_order_cancelled', 'ordernotifier_handle_order_cance
 function ordernotifier_handle_order_created($order_id)
 {
     $CI =& get_instance();
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active(ORDERNOTIFIER_MODULE_NAME)) {
+        return;
+    }
     $CI->load->model('ordernotifier/ordernotifier_model');
     $CI->ordernotifier_model->notify($order_id, 'order_created');
 }
@@ -39,6 +42,9 @@ function ordernotifier_handle_order_created($order_id)
 function ordernotifier_handle_order_confirmed($order_id)
 {
     $CI =& get_instance();
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active(ORDERNOTIFIER_MODULE_NAME)) {
+        return;
+    }
     $CI->load->model('ordernotifier/ordernotifier_model');
     $CI->ordernotifier_model->notify($order_id, 'order_confirmed');
 }
@@ -49,6 +55,9 @@ function ordernotifier_handle_order_confirmed($order_id)
 function ordernotifier_handle_order_cancelled($order_id)
 {
     $CI =& get_instance();
+    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active(ORDERNOTIFIER_MODULE_NAME)) {
+        return;
+    }
     $CI->load->model('ordernotifier/ordernotifier_model');
     $CI->ordernotifier_model->notify($order_id, 'order_cancelled');
 }
