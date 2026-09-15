@@ -63,9 +63,19 @@ function wooconnector_register_menu(): void
 
     $CI = &get_instance();
 
+    // Retired: WooCommerce is served by the wcsync connector now. These screens
+    // only appear where this module actually imported something, so an existing
+    // install can still read its history and finish leads already in flight,
+    // while a fresh install never sees a second WooCommerce menu to configure
+    // by mistake.
+    if (!$CI->db->table_exists(db_prefix() . 'wooconnector_orders')
+        || $CI->db->count_all(db_prefix() . 'wooconnector_orders') === 0) {
+        return;
+    }
+
     $CI->app_menu->add_sidebar_menu_item('wooconnector', [
-        'name'     => 'WooConnector',
-        'icon'     => 'fa fa-shopping-cart',
+        'name'     => 'WooConnector (legacy)',
+        'icon'     => 'fa fa-archive',
         'position' => 60,
     ]);
 
