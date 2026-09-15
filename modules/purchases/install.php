@@ -22,6 +22,14 @@ if (!$CI->db->table_exists($db_prefix . 'purchases_suppliers')) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
 
+// A supplier you have bought from is never deleted — the purchase orders and the
+// payables ledger have to stay. Retiring it keeps the history and takes it out of
+// the pickers.
+if (!$CI->db->field_exists('is_active', $db_prefix . 'purchases_suppliers')) {
+    $CI->db->query("ALTER TABLE `{$db_prefix}purchases_suppliers`
+        ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1");
+}
+
 // 2. Purchase Orders table
 if (!$CI->db->table_exists($db_prefix . 'purchases_orders')) {
     $CI->db->query("CREATE TABLE `{$db_prefix}purchases_orders` (

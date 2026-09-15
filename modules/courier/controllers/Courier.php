@@ -46,16 +46,23 @@ class Courier extends AdminController
      */
     public function delete_account($id)
     {
-        if (!staff_can('delete', 'courier')) {
+        if (!staff_can('settings', 'courier')) {
             access_denied('Delete Courier Account');
         }
 
-        if ($this->courier_model->delete_account($id)) {
-            set_alert('success', 'Courier Account deleted successfully.');
+        $blocker = $this->courier_model->account_delete_blocker((int) $id);
+
+        if ($blocker === null) {
+            $this->courier_model->delete_account((int) $id);
+            set_alert('success', 'Courier account deleted.');
         } else {
-            set_alert('danger', 'Failed to delete courier account.');
+            $this->courier_model->deactivate_account((int) $id);
+            set_alert('warning', 'This account could not be deleted because ' . $blocker
+                . '. It has been deactivated instead, so nothing new can be booked through it '
+                . 'while those shipments can still be tracked.');
         }
-        redirect(admin_url('salesos/settings?tab=couriers'));
+
+        redirect(admin_url('courier/settings'));
     }
 
     // ── Pathao Dynamic AJAX Endpoints ─────────────────────────────────────────

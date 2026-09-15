@@ -56,8 +56,17 @@ class Purchases extends AdminController
         if (!staff_can('delete', 'purchases')) {
             access_denied('Delete Supplier');
         }
-        $this->purchases_model->delete_supplier($id);
-        set_alert('success', 'Supplier deleted successfully.');
+        $blocker = $this->purchases_model->supplier_delete_blocker((int) $id);
+
+        if ($blocker === null) {
+            $this->purchases_model->delete_supplier((int) $id);
+            set_alert('success', 'Supplier deleted.');
+        } else {
+            $this->purchases_model->deactivate_supplier((int) $id);
+            set_alert('warning', 'This supplier could not be deleted because ' . $blocker
+                . '. It has been deactivated instead, so its purchase history and balance are kept.');
+        }
+
         redirect(admin_url('purchases/suppliers'));
     }
 

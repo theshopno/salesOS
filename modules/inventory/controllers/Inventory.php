@@ -51,8 +51,19 @@ class Inventory extends AdminController
         if (!staff_can('delete', 'inventory')) {
             access_denied('Delete Product');
         }
-        $this->inventory_model->delete_product($id);
-        set_alert('success', 'Product deleted successfully.');
+        $blocker = $this->inventory_model->product_delete_blocker((int) $id);
+
+        if ($blocker === null) {
+            $this->inventory_model->delete_product((int) $id);
+            set_alert('success', 'Product deleted.');
+        } else {
+            // Deleting it would take the stock ledger with it and leave the
+            // order lines it appears on pointing at nothing.
+            $this->inventory_model->deactivate_product((int) $id);
+            set_alert('warning', 'This product could not be deleted because ' . $blocker
+                . '. It has been deactivated instead, so it no longer appears for sale while its history is kept.');
+        }
+
         redirect(admin_url('inventory/products'));
     }
 
@@ -86,8 +97,13 @@ class Inventory extends AdminController
         if (!staff_can('delete', 'inventory')) {
             access_denied('Delete Category');
         }
-        $this->inventory_model->delete_category($id);
-        set_alert('success', 'Category deleted successfully.');
+        $released = $this->inventory_model->count_category_products((int) $id);
+        $this->inventory_model->delete_category((int) $id);
+
+        set_alert('success', $released > 0
+            ? 'Category deleted. ' . $released . ' product(s) are now uncategorised.'
+            : 'Category deleted.');
+
         redirect(admin_url('inventory/categories'));
     }
 

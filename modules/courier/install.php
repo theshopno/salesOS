@@ -28,12 +28,28 @@ if (!$CI->db->table_exists($db_prefix . 'courier_accounts')) {
     }
 }
 
+// A consignment outlives the account it was booked through — the account can be
+// removed once nothing is in transit, and the shipment stays as history with a
+// null account rather than an id that resolves to nothing.
+if ($CI->db->table_exists($db_prefix . 'courier_consignments')) {
+    $nullable = $CI->db->query(
+        'SELECT IS_NULLABLE n FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = "courier_account_id"',
+        [$db_prefix . 'courier_consignments']
+    )->row();
+
+    if ($nullable && $nullable->n === 'NO') {
+        $CI->db->query("ALTER TABLE `{$db_prefix}courier_consignments`
+            MODIFY `courier_account_id` INT(11) NULL DEFAULT NULL");
+    }
+}
+
 // 2. Courier Consignments table
 if (!$CI->db->table_exists($db_prefix . 'courier_consignments')) {
     $res = $CI->db->query("CREATE TABLE `{$db_prefix}courier_consignments` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `salesos_order_id` INT(11) NOT NULL,
-        `courier_account_id` INT(11) NOT NULL,
+        `courier_account_id` INT(11) DEFAULT NULL,
         `consignment_id` VARCHAR(100) DEFAULT NULL,
         `tracking_id` VARCHAR(100) DEFAULT NULL,
         `cod_amount` DECIMAL(15,2) NOT NULL DEFAULT 0.00,

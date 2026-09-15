@@ -60,19 +60,70 @@ class Inventory_model extends App_Model
         return $this->db->update(db_prefix() . 'inventory_products', $db_data);
     }
 
+    /**
+     * Why a product is ever refused deletion.
+     *
+     * @return string|null the reason, or null when it is safe to delete
+     */
+    public function product_delete_blocker(int $id): ?string
+    {
+        $prefix = db_prefix();
+
+        $sold = (int) $this->db->where('product_id', $id)
+            ->count_all_results($prefix . 'salesos_order_items');
+        if ($sold > 0) {
+            return "it appears on {$sold} order line(s)";
+        }
+
+        $purchased = $this->db->table_exists($prefix . 'purchases_order_items')
+            ? (int) $this->db->where('product_id', $id)->count_all_results($prefix . 'purchases_order_items')
+            : 0;
+        if ($purchased > 0) {
+            return "it appears on {$purchased} purchase order line(s)";
+        }
+
+        $movements = (int) $this->db->where('product_id', $id)
+            ->count_all_results($prefix . 'inventory_stock_ledger');
+        if ($movements > 0) {
+            return "it has {$movements} stock movement(s) on record";
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete a product that was never traded.
+     *
+     * A product that has been bought or sold is refused rather than removed:
+     * deleting it took its whole stock ledger with it — the audit trail of what
+     * actually moved, which has to outlive the catalogue entry — and left order
+     * lines pointing at a product id that resolves to nothing. Retiring such a
+     * product is what deactivate_product() is for; it keeps the history and takes
+     * it out of every picker.
+     *
+     * @return bool false when the product is in use; ask
+     *              product_delete_blocker() why
+     */
     public function delete_product(int $id): bool
     {
+        if ($this->product_delete_blocker($id) !== null) {
+            return false;
+        }
+
         $this->db->trans_start();
-        $this->db->where('id', $id);
-        $this->db->delete(db_prefix() . 'inventory_products');
-        
-        $this->db->where('product_id', $id);
-        $this->db->delete(db_prefix() . 'inventory_stock');
-        
-        $this->db->where('product_id', $id);
-        $this->db->delete(db_prefix() . 'inventory_stock_ledger');
+        $this->db->where('id', $id)->delete(db_prefix() . 'inventory_products');
+        $this->db->where('product_id', $id)->delete(db_prefix() . 'inventory_stock');
+        $this->db->where('product_id', $id)->delete(db_prefix() . 'inventory_stock_ledger');
         $this->db->trans_complete();
+
         return $this->db->trans_status();
+    }
+
+    /** Retire a product without losing what it did. */
+    public function deactivate_product(int $id): bool
+    {
+        return $this->db->where('id', $id)
+            ->update(db_prefix() . 'inventory_products', ['is_active' => 0]);
     }
 
     // ── Categories ────────────────────────────────────────────────────────────
@@ -100,10 +151,37 @@ class Inventory_model extends App_Model
         ]);
     }
 
+    /**
+     * Delete a category, releasing its products first.
+     *
+     * A category is a label, not an owner — the products outlive it. Without this
+     * they kept pointing at an id that no longer existed, which quietly dropped
+     * them out of category filters and the POS grid.
+     */
     public function delete_category(int $id): bool
     {
-        $this->db->where('id', $id);
-        return $this->db->delete(db_prefix() . 'inventory_categories');
+        $this->db->trans_start();
+
+        $this->db->where('category_id', $id)
+            ->update(db_prefix() . 'inventory_products', ['category_id' => null]);
+
+        // Nested categories are re-parented to the top rather than orphaned.
+        if ($this->db->field_exists('parent_id', db_prefix() . 'inventory_categories')) {
+            $this->db->where('parent_id', $id)
+                ->update(db_prefix() . 'inventory_categories', ['parent_id' => null]);
+        }
+
+        $this->db->where('id', $id)->delete(db_prefix() . 'inventory_categories');
+        $this->db->trans_complete();
+
+        return $this->db->trans_status();
+    }
+
+    /** How many products a category would release if it were deleted. */
+    public function count_category_products(int $id): int
+    {
+        return (int) $this->db->where('category_id', $id)
+            ->count_all_results(db_prefix() . 'inventory_products');
     }
 
     // ── Stock Adjustments & Ledger ────────────────────────────────────────────

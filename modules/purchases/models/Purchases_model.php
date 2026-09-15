@@ -50,16 +50,49 @@ class Purchases_model extends App_Model
         return $this->db->update(db_prefix() . 'purchases_suppliers', $db_data);
     }
 
+    /**
+     * Why a supplier is ever refused deletion.
+     *
+     * @return string|null the reason, or null when it is safe to delete
+     */
+    public function supplier_delete_blocker(int $id): ?string
+    {
+        $orders = (int) $this->db->where('supplier_id', $id)
+            ->count_all_results(db_prefix() . 'purchases_orders');
+        if ($orders > 0) {
+            return "it has {$orders} purchase order(s)";
+        }
+
+        $entries = (int) $this->db->where('supplier_id', $id)
+            ->count_all_results(db_prefix() . 'purchases_supplier_ledger');
+        if ($entries > 0) {
+            return "it has {$entries} ledger entr(ies)";
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete a supplier you never traded with.
+     *
+     * One you have bought from is refused: removing it took the payables ledger
+     * with it and left the purchase orders attached to an id that resolves to
+     * nothing, so neither what was ordered nor what is still owed could be read
+     * back. deactivate_supplier() retires it instead.
+     */
     public function delete_supplier(int $id): bool
     {
-        $this->db->trans_start();
-        $this->db->where('id', $id);
-        $this->db->delete(db_prefix() . 'purchases_suppliers');
+        if ($this->supplier_delete_blocker($id) !== null) {
+            return false;
+        }
 
-        $this->db->where('supplier_id', $id);
-        $this->db->delete(db_prefix() . 'purchases_supplier_ledger');
-        $this->db->trans_complete();
-        return $this->db->trans_status();
+        return $this->db->where('id', $id)->delete(db_prefix() . 'purchases_suppliers');
+    }
+
+    public function deactivate_supplier(int $id): bool
+    {
+        return $this->db->where('id', $id)
+            ->update(db_prefix() . 'purchases_suppliers', ['is_active' => 0]);
     }
 
     // ── Purchase Orders CRUD ──────────────────────────────────────────────────

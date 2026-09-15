@@ -204,23 +204,79 @@ class Courier_model extends App_Model
     /**
      * Delete courier account and credentials
      */
+    /** Consignment states that are over; anything else is still in the field. */
+    private const TERMINAL_STATUSES = ['delivered', 'cancelled', 'returned'];
+
+    /**
+     * Why a courier account is ever refused deletion.
+     *
+     * @return string|null the reason, or null when it is safe to delete
+     */
+    public function account_delete_blocker($id): ?string
+    {
+        $db_prefix = db_prefix();
+
+        $this->db->where('courier_account_id', (int) $id);
+        $this->db->where_not_in('status', self::TERMINAL_STATUSES);
+        $in_flight = (int) $this->db->count_all_results($db_prefix . 'courier_consignments');
+
+        if ($in_flight > 0) {
+            return "{$in_flight} consignment(s) booked through it are still in transit";
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete a courier account with nothing still in the field.
+     *
+     * Removing one with live consignments left them pointing at an account that
+     * no longer exists, so status sync had no credentials to call with and the
+     * tracking id was all that survived. Past consignments keep the account row
+     * for the same reason: it is what says which courier carried them.
+     *
+     * @return bool false when shipments are still out; ask
+     *              account_delete_blocker() why
+     */
     public function delete_account($id)
     {
+        if ($this->account_delete_blocker($id) !== null) {
+            return false;
+        }
+
         $db_prefix = db_prefix();
         $this->db->where('id', $id);
         $account = $this->db->get($db_prefix . 'courier_accounts')->row_array();
-        if ($account) {
-            $this->db->where('id', $account['credential_id']);
-            $this->db->delete($db_prefix . 'salesos_credentials');
 
-            $this->db->where('id', $id);
-            $this->db->delete($db_prefix . 'courier_accounts');
-            
-            // Cleanup cached options
-            delete_option('pathao_token_data_' . $id);
-            return true;
+        if (!$account) {
+            return false;
         }
-        return false;
+
+        $this->db->trans_start();
+
+        // Delivered and cancelled shipments stay as history, but they must not
+        // keep an id that resolves to nothing.
+        $this->db->where('courier_account_id', (int) $id)
+            ->update($db_prefix . 'courier_consignments', ['courier_account_id' => null]);
+
+        if (!empty($account['credential_id'])) {
+            $this->db->where('id', $account['credential_id'])
+                ->delete($db_prefix . 'salesos_credentials');
+        }
+
+        $this->db->where('id', $id)->delete($db_prefix . 'courier_accounts');
+        $this->db->trans_complete();
+
+        delete_option('pathao_token_data_' . $id);
+
+        return $this->db->trans_status();
+    }
+
+    /** Retire an account without losing the shipments booked through it. */
+    public function deactivate_account($id): bool
+    {
+        return $this->db->where('id', (int) $id)
+            ->update(db_prefix() . 'courier_accounts', ['is_active' => 0]);
     }
 
     /**
