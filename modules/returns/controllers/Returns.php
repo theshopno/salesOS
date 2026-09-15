@@ -76,13 +76,8 @@ class Returns extends AdminController
             }
         }
 
-        // Fetch confirmed orders to populate autocomplete/dropdown search
-        // Max 100 recent orders for lookup efficiency
-        $this->db->select('id, channel, channel_ref_id, total, created_at');
-        $this->db->where_in('status', ['confirmed', 'paid']);
-        $this->db->order_by('created_at', 'DESC');
-        $this->db->limit(100);
-        $data['orders'] = $this->db->get(db_prefix() . 'salesos_orders')->result_array();
+        // Recent eligible orders for the picker, capped for lookup efficiency
+        $data['orders'] = $this->salesos_model->list_recent_orders(['confirmed', 'paid'], 100);
 
         $data['title'] = 'Create Return Order';
         $this->load->view('returns/create', $data);

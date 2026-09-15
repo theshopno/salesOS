@@ -309,6 +309,21 @@ class Salesos_model extends App_Model
     }
 
     /**
+     * Recent orders in the given statuses, for add-ons that offer an order
+     * picker. Returns summary columns only — a caller that needs the whole row
+     * asks for it by id.
+     */
+    public function list_recent_orders(array $statuses, int $limit = 100): array
+    {
+        return $this->db->select('id, channel, channel_ref_id, total, created_at')
+            ->where_in('status', $statuses)
+            ->order_by('created_at', 'DESC')
+            ->limit($limit)
+            ->get(db_prefix() . 'salesos_orders')
+            ->result_array();
+    }
+
+    /**
      * A module's own credentials for picking one in a UI. Deliberately never
      * returns `payload`: a select box needs the label, not the secret, and
      * encrypted payloads have no business reaching a view.
