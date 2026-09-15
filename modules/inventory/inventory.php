@@ -73,7 +73,7 @@ function inventory_register_menu(): void
         'slug'     => 'inventory-adjustments',
         'name'     => 'Stock Ledger',
         'href'     => admin_url('inventory/adjustments'),
-        'position' => 8,
+        'position' => 9,
     ]);
 }
 

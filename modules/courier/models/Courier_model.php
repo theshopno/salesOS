@@ -570,14 +570,76 @@ class Courier_model extends App_Model
     /**
      * Get list of all consignments
      */
-    public function get_consignments()
+    /**
+     * Shipments, newest first, with everything the person chasing them needs on
+     * the row: who it is going to, what it is worth, which courier has it and
+     * when its status was last checked.
+     *
+     * @param array $filters status|account_id|search — search matches a tracking
+     *                       id, a consignment id, the customer's phone or name
+     */
+    public function get_consignments(array $filters = [], int $limit = 200): array
     {
         $db_prefix = db_prefix();
-        $this->db->select("{$db_prefix}courier_consignments.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id, {$db_prefix}courier_accounts.label as account_label, {$db_prefix}courier_accounts.provider");
-        $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'courier_consignments.salesos_order_id', 'left');
-        $this->db->join($db_prefix . 'courier_accounts', $db_prefix . 'courier_accounts.id = ' . $db_prefix . 'courier_consignments.courier_account_id', 'left');
-        $this->db->order_by('created_at', 'DESC');
-        return $this->db->get($db_prefix . 'courier_consignments')->result_array();
+
+        $this->db->select("cc.*,
+            o.channel, o.channel_ref_id, o.status AS order_status, o.total AS order_total,
+            ca.label AS account_label, ca.provider,
+            COALESCE(NULLIF(TRIM(CONCAT(con.firstname,' ',con.lastname)),''), c.company, l.name, 'Guest') AS customer_name,
+            COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') AS customer_phone,
+            COALESCE(c.address, l.address, '') AS customer_address");
+        $this->db->from($db_prefix . 'courier_consignments cc');
+        $this->db->join($db_prefix . 'salesos_orders o', 'o.id = cc.salesos_order_id', 'left');
+        $this->db->join($db_prefix . 'courier_accounts ca', 'ca.id = cc.courier_account_id', 'left');
+        $this->db->join($db_prefix . 'contacts con', 'con.userid = o.client_id AND con.is_primary = 1', 'left');
+        $this->db->join($db_prefix . 'clients c', 'c.userid = o.client_id', 'left');
+        $this->db->join($db_prefix . 'leads l', 'l.id = o.lead_id', 'left');
+
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'in_transit') {
+                $this->db->where_not_in('cc.status', self::TERMINAL_STATUSES);
+            } else {
+                $this->db->where('cc.status', $filters['status']);
+            }
+        }
+
+        if (!empty($filters['account_id'])) {
+            $this->db->where('cc.courier_account_id', (int) $filters['account_id']);
+        }
+
+        if (!empty($filters['search'])) {
+            $term = trim($filters['search']);
+            $this->db->group_start()
+                ->like('cc.tracking_id', $term)
+                ->or_like('cc.consignment_id', $term)
+                ->or_like('con.phonenumber', $term)
+                ->or_like('l.phonenumber', $term)
+                ->or_like('l.name', $term)
+                ->or_like('c.company', $term)
+                ->group_end();
+        }
+
+        return $this->db->order_by('cc.created_at', 'DESC')->limit($limit)->get()->result_array();
+    }
+
+    /** How many shipments sit in each status, for the filter bar. */
+    public function count_consignments_by_status(): array
+    {
+        $rows = $this->db->select('status, COUNT(*) AS count')
+            ->group_by('status')
+            ->get(db_prefix() . 'courier_consignments')
+            ->result_array();
+
+        $counts = ['all' => 0, 'in_transit' => 0];
+        foreach ($rows as $row) {
+            $counts[$row['status']] = (int) $row['count'];
+            $counts['all'] += (int) $row['count'];
+            if (!in_array($row['status'], self::TERMINAL_STATUSES, true)) {
+                $counts['in_transit'] += (int) $row['count'];
+            }
+        }
+
+        return $counts;
     }
 
     /**

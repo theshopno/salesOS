@@ -63,6 +63,6 @@ function returns_register_menu(): void
         'slug'     => 'returns-list',
         'name'     => 'Returns List',
         'href'     => admin_url('returns'),
-        'position' => 7,
+        'position' => 8,
     ]);
 }

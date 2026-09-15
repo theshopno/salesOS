@@ -15,6 +15,50 @@ class Courier extends AdminController
     /**
      * List & configure Courier Settings (Handles Form Submission, Redirects to Unified Salesos Settings Page)
      */
+    /**
+     * Every shipment and where it currently is — the screen a cash-on-delivery
+     * operation lives in during the day.
+     */
+    public function consignments()
+    {
+        if (!staff_can('view', 'courier')) {
+            access_denied('Courier Consignments');
+        }
+
+        $filters = [
+            'status'     => $this->input->get('status') ?: '',
+            'account_id' => $this->input->get('account_id') ?: '',
+            'search'     => $this->input->get('search') ?: '',
+        ];
+
+        $data['title']        = 'Consignments';
+        $data['filters']      = $filters;
+        $data['consignments'] = $this->courier_model->get_consignments($filters);
+        $data['counts']       = $this->courier_model->count_consignments_by_status();
+        $data['accounts']     = $this->courier_model->get_accounts();
+
+        $this->load->view('courier/consignments', $data);
+    }
+
+    /** Ask every courier what has happened to the shipments still in transit. */
+    public function sync_statuses()
+    {
+        if (!staff_can('edit', 'courier')) {
+            access_denied('Sync Consignments');
+        }
+
+        try {
+            $synced = $this->courier_model->sync_all_active_statuses();
+            set_alert('success', is_numeric($synced)
+                ? $synced . ' shipment(s) checked with the courier.'
+                : 'Shipment statuses checked with the courier.');
+        } catch (Throwable $e) {
+            set_alert('danger', 'Could not reach the courier: ' . $e->getMessage());
+        }
+
+        redirect(admin_url('courier/consignments'));
+    }
+
     public function settings()
     {
         if (!staff_can('view', 'courier')) {

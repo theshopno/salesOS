@@ -22,6 +22,12 @@ function courier_activation_hook(): void
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 hooks()->add_action('app_init',   'courier_load_resources');
 hooks()->add_action('admin_init', 'courier_register_permissions');
+hooks()->add_action('admin_init', 'courier_register_menu');
+
+// The module's own event, now that something listens for it: every status the
+// courier reports is written to the order's event log, so the history of a
+// parcel reads alongside everything else that happened to that order.
+hooks()->add_action('courier_consignment_status_changed', 'courier_log_status_change');
 
 // Background status sync hook
 hooks()->add_action('after_cron_run', 'courier_handle_cron_sync');
@@ -49,6 +55,45 @@ function courier_register_permissions(): void
 }
 
 // ── Cron Handler ─────────────────────────────────────────────────────────────
+// ── Menu ─────────────────────────────────────────────────────────────────────
+function courier_register_menu(): void
+{
+    $CI = &get_instance();
+    if (!$CI->app_modules->is_active('salesos')) { return; }
+    if (!salesos_ecommerce_enabled()) { return; }
+    if (!staff_can('view', COURIER_MODULE_NAME)) { return; }
+
+    // Chasing parcels is daily work in a cash-on-delivery business, so this sits
+    // in the main menu next to Returns rather than behind Settings — where the
+    // courier accounts themselves still live.
+    $CI->app_menu->add_sidebar_children_item('salesos', [
+        'slug'     => 'courier-consignments',
+        'name'     => 'Consignments',
+        'href'     => admin_url('courier/consignments'),
+        'position' => 7,
+    ]);
+}
+
+function courier_log_status_change($data): void
+{
+    $CI = &get_instance();
+    if (!$CI->app_modules->is_active('salesos')) { return; }
+
+    $CI->db->where('id', (int) ($data['id'] ?? 0));
+    $consignment = $CI->db->get(db_prefix() . 'courier_consignments')->row();
+
+    if (!$consignment || empty($consignment->salesos_order_id)) {
+        return;
+    }
+
+    $CI->load->model('salesos/salesos_model');
+    $CI->salesos_model->log_event('order.courier_status', 'order', (int) $consignment->salesos_order_id, [
+        'tracking_id' => $consignment->tracking_id,
+        'old_status'  => $data['old_status'] ?? null,
+        'new_status'  => $data['new_status'] ?? null,
+    ]);
+}
+
 function courier_handle_cron_sync(): void
 {
     $CI = &get_instance();
