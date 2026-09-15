@@ -52,19 +52,6 @@ function wcsync_register_menu(): void
     if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     if (!staff_can('view', WCSYNC_MODULE_NAME)) { return; }
 
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'wcsync-dashboard', 
-        'name'     => 'WooCommerce Sync',
-        'href'     => admin_url('wcsync'), 
-        'position' => 20,
-    ]);
-
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'wcsync-settings', 
-        'name'     => 'WC Settings',
-        'href'     => admin_url('wcsync/settings'), 
-        'position' => 21,
-    ]);
 }
 
 // ── Cron Handler ─────────────────────────────────────────────────────────────

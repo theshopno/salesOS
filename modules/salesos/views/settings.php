@@ -31,6 +31,11 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                 <i class="fa fa-bell"></i> Notifications Settings
                             </a>
                         </li>
+                        <li role="presentation" class="<?= $active_tab === 'setup' ? 'active' : '' ?>">
+                            <a href="#setup" aria-controls="setup" role="tab" data-toggle="tab">
+                                <i class="fa fa-sliders"></i> Catalogue &amp; Setup
+                            </a>
+                        </li>
                     </ul>
                 </div>
 
@@ -454,6 +459,75 @@ $active_tab = $this->input->get('tab') ?: 'channels';
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: CATALOGUE & SETUP -->
+                    <div role="tabpanel" class="tab-pane <?= $active_tab === 'setup' ? 'active' : '' ?>" id="setup">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <p class="text-muted">
+                                    Screens you set up once and then rarely revisit. They stay out of the
+                                    main menu so the daily work is easier to reach, but nothing here has
+                                    moved or changed — each page is exactly where it was.
+                                </p>
+                            </div>
+                        </div>
+
+                        <?php
+                        $CI = &get_instance();
+                        $setup_groups = [
+                            [
+                                'title'  => 'Catalogue',
+                                'icon'   => 'fa fa-boxes',
+                                'module' => 'inventory',
+                                'links'  => [
+                                    ['Product Categories', 'Group products for reporting and the POS grid.', admin_url('inventory/categories'), 'fa fa-tags'],
+                                    ['Inventory Settings', 'Whether a sale may go through with no stock left.', admin_url('inventory/settings'), 'fa fa-cog'],
+                                ],
+                            ],
+                            [
+                                'title'  => 'Suppliers',
+                                'icon'   => 'fa fa-industry',
+                                'module' => 'purchases',
+                                'links'  => [
+                                    ['Suppliers', 'Who you buy stock from.', admin_url('purchases/suppliers'), 'fa fa-address-book'],
+                                    ['Supplier Ledger', 'What you owe each supplier, and what you have paid.', admin_url('purchases/supplier_ledger'), 'fa fa-book'],
+                                ],
+                            ],
+                            [
+                                'title'  => 'WooCommerce',
+                                'icon'   => 'fa fa-shopping-bag',
+                                'module' => 'wcsync',
+                                'links'  => [
+                                    ['Connected Sites', 'Add a store and choose which lead status new orders land in.', admin_url('wcsync/settings'), 'fa fa-plug'],
+                                    ['Sync Status', 'When each store last synced, and what came through.', admin_url('wcsync'), 'fa fa-refresh'],
+                                ],
+                            ],
+                        ];
+                        ?>
+
+                        <div class="row">
+                            <?php foreach ($setup_groups as $group): ?>
+                                <?php if (!$CI->app_modules->is_active($group['module'])) { continue; } ?>
+                                <div class="col-md-4">
+                                    <div class="panel_s">
+                                        <div class="panel-body">
+                                            <h4 class="no-margin font-medium">
+                                                <i class="<?= $group['icon'] ?>"></i> <?= $group['title'] ?>
+                                            </h4>
+                                            <hr class="hr-panel-heading" />
+                                            <?php foreach ($group['links'] as [$label, $description, $href, $icon]): ?>
+                                                <a href="<?= $href ?>" class="display-block mbot15">
+                                                    <span class="bold"><i class="<?= $icon ?>"></i> <?= $label ?></span>
+                                                    <br>
+                                                    <small class="text-muted"><?= $description ?></small>
+                                                </a>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 

@@ -54,7 +54,9 @@ function pos_register_menu(): void
         'slug'     => 'pos-cashier',
         'name'     => 'POS Sale',
         'href'     => admin_url('pos'),
-        'position' => 25,
+        // The counter screen — for a shop seller this is the most-opened page
+        // in the whole product, so it sits third, not last.
+        'position' => 3,
     ]);
 
 }

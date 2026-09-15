@@ -26,6 +26,16 @@
                         <i class="fa-solid fa-server tw-mr-1"></i> <?= _l('pbxpilot_connection_tab') ?>
                     </a>
                 </li>
+                <?php if (staff_can('manage', PBXPILOT_MODULE_NAME)): ?>
+                    <!-- Its own page, not a pane: mapping extensions is new-hire
+                         onboarding, so it belongs behind Settings rather than in
+                         the main menu, but it keeps its existing screen. -->
+                    <li role="presentation">
+                        <a href="<?= admin_url('pbxpilot/agents') ?>">
+                            <i class="fa-solid fa-headset tw-mr-1"></i> <?= _l('pbxpilot_agents_title') ?>
+                        </a>
+                    </li>
+                <?php endif; ?>
             </ul>
 
             <form method="POST" action="<?= admin_url('pbxpilot/settings') ?>">

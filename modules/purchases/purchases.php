@@ -56,14 +56,8 @@ function purchases_register_menu(): void
     $CI->app_menu->add_sidebar_children_item('salesos', [
         'slug'     => 'purchases-orders', 
         'name'     => 'Purchase Orders',
-        'href'     => admin_url('purchases/purchase_orders'), 
-        'position' => 15,
-    ]);
-
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'purchases-suppliers', 
-        'name'     => 'Suppliers',
-        'href'     => admin_url('purchases/suppliers'), 
-        'position' => 16,
+        'href'     => admin_url('purchases/purchase_orders'),
+        // Restocking is regular work; supplier records are not.
+        'position' => 5,
     ]);
 }

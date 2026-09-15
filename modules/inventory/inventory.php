@@ -58,33 +58,21 @@ function inventory_register_menu(): void
     if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     if (!staff_can('view', INVENTORY_MODULE_NAME)) { return; }
 
-    // Add children items under salesos parent menu item
+    // Only the two screens used during normal stock work stay in main
+    // navigation. Categories and the inventory settings are set up once and
+    // then left alone, so they are reached from SalesOS → Settings instead.
     $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-products', 
+        'slug'     => 'inventory-products',
         'name'     => 'Products',
-        'href'     => admin_url('inventory/products'), 
-        'position' => 10,
+        'href'     => admin_url('inventory/products'),
+        'position' => 4,
     ]);
 
     $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-adjustments', 
+        'slug'     => 'inventory-adjustments',
         'name'     => 'Stock Ledger',
-        'href'     => admin_url('inventory/adjustments'), 
-        'position' => 11,
-    ]);
-
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-categories',
-        'name'     => 'Categories',
-        'href'     => admin_url('inventory/categories'),
-        'position' => 12,
-    ]);
-
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-settings',
-        'name'     => 'Inventory Settings',
-        'href'     => admin_url('inventory/settings'),
-        'position' => 14,
+        'href'     => admin_url('inventory/adjustments'),
+        'position' => 7,
     ]);
 }
 

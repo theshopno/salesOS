@@ -108,21 +108,13 @@ function pbxpilot_register_menu(): void
         ]);
     }
 
-    if (staff_can('manage', PBXPILOT_MODULE_NAME)) {
-        $CI->app_menu->add_sidebar_children_item('pbxpilot', [
-            'slug'     => 'pbxpilot-agents',
-            'name'     => 'Agents',
-            'href'     => admin_url('pbxpilot/agents'),
-            'position' => 3,
-        ]);
-    }
 
     if (staff_can('settings', PBXPILOT_MODULE_NAME)) {
         $CI->app_menu->add_sidebar_children_item('pbxpilot', [
             'slug'     => 'pbxpilot-settings',
             'name'     => 'Settings',
             'href'     => admin_url('pbxpilot/settings'),
-            'position' => 5,
+            'position' => 99,
         ]);
     }
 }

@@ -49,32 +49,36 @@ function salesos_register_menu(): void
     $CI = &get_instance();
 
     $CI->app_menu->add_sidebar_menu_item(SALESOS_MODULE_NAME, [
-        'name'     => 'E-commerce', 
-        'icon'     => 'fa fa-shopping-cart', 
+        'name'     => 'SalesOS',
+        'icon'     => 'fa fa-shopping-cart',
         'position' => 30,
     ]);
-    
+
+    // Main navigation carries only what an operator opens during a normal
+    // working day, ordered by how often that happens. Positions 1-9 are reserved
+    // for those screens; anything configured once and then left alone lives
+    // behind Settings instead (see salesos/views/settings.php).
     if (staff_can('view', SALESOS_MODULE_NAME)) {
         $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
-            'slug'     => 'salesos-dashboard', 
+            'slug'     => 'salesos-dashboard',
             'name'     => 'Dashboard',
-            'href'     => admin_url('salesos'), 
+            'href'     => admin_url('salesos'),
             'position' => 1,
         ]);
         $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
-            'slug'     => 'salesos-orders', 
+            'slug'     => 'salesos-orders',
             'name'     => 'Orders',
-            'href'     => admin_url('salesos/orders'), 
-            'position' => 1.5,
+            'href'     => admin_url('salesos/orders'),
+            'position' => 2,
         ]);
     }
 
     if (staff_can('settings', SALESOS_MODULE_NAME)) {
         $CI->app_menu->add_sidebar_children_item(SALESOS_MODULE_NAME, [
-            'slug'     => 'salesos-settings', 
+            'slug'     => 'salesos-settings',
             'name'     => 'Settings',
-            'href'     => admin_url('salesos/settings'), 
-            'position' => 2,
+            'href'     => admin_url('salesos/settings'),
+            'position' => 99,
         ]);
     }
 }
