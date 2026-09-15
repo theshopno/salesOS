@@ -46,6 +46,19 @@ function salesos_ecommerce_enabled(): bool
 }
 
 /**
+ * Must an order be confirmed by a human before it reaches fulfilment?
+ *
+ * On by default. A cash-on-delivery order in this market is not trusted until
+ * somebody has phoned the customer — shipping an unconfirmed one is how sellers
+ * lose money on refused deliveries. Off means a channel order goes straight to
+ * whatever status the storefront reports.
+ */
+function salesos_order_confirmation_required(): bool
+{
+    return salesos_ecommerce_enabled() && get_option('salesos_require_order_confirmation') !== '0';
+}
+
+/**
  * Guard for controllers that only make sense when e-commerce is on. The kernel's
  * own settings screen deliberately does NOT call this — that is where the switch
  * lives, so blocking it would leave no way back.

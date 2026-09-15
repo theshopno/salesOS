@@ -17,28 +17,10 @@ class Wcsync extends AdminController
 
     public function index()
     {
-        $data['title'] = 'WooCommerce Sync Dashboard';
-        $data['sites'] = $this->wcsync_model->get_sites();
-
-        // Get total synced orders count grouped by site
-        $this->db->select('site_id, COUNT(*) as count');
-        $this->db->group_by('site_id');
-        $stats_rows = $this->db->get(db_prefix() . 'wcsync_orders')->result_array();
-        
-        $stats = [];
-        foreach ($stats_rows as $row) {
-            $stats[$row['site_id']] = (int) $row['count'];
-        }
-        $data['stats'] = $stats;
-
-        // Recent synced orders log
-        $this->db->select('wo.*, s.name as site_name, eo.status as eco_status, eo.total as eco_total');
-        $this->db->from(db_prefix() . 'wcsync_orders wo');
-        $this->db->join(db_prefix() . 'wcsync_sites s', 's.id = wo.site_id');
-        $this->db->join(db_prefix() . 'salesos_orders eo', 'eo.id = wo.salesos_order_id');
-        $this->db->order_by('wo.synced_at', 'desc');
-        $this->db->limit(15);
-        $data['recent_syncs'] = $this->db->get()->result_array();
+        $data['title']        = 'WooCommerce Sync';
+        $data['sites']        = $this->wcsync_model->get_sites();
+        $data['stats']        = $this->wcsync_model->get_site_stats();
+        $data['recent_syncs'] = $this->wcsync_model->get_synced_orders();
 
         $this->load->view('wcsync/dashboard', $data);
     }

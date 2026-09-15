@@ -145,7 +145,46 @@ if (!$CI->db->table_exists($db_prefix . 'salesos_events')) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
 
-// 5. Indexed phone-suffix generated column on core CRM tables, shared by every
+// 5. Channel sites — one row per connected storefront, whatever the platform.
+// Deliberately not one table per connector: a WooCommerce store, a Shopify store
+// and a custom Laravel site differ only in how their API is called, so they
+// share a row shape and the kernel can list every connected store in one query.
+if (!$CI->db->table_exists($db_prefix . 'salesos_channel_sites')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_channel_sites` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `platform` VARCHAR(30) NOT NULL,
+        `name` VARCHAR(150) NOT NULL,
+        `site_url` VARCHAR(255) NOT NULL,
+        `credential_id` INT(11) DEFAULT NULL,
+        `default_lead_status_id` INT(11) DEFAULT NULL,
+        `settings` JSON DEFAULT NULL,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `last_synced_at` DATETIME DEFAULT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `platform` (`platform`),
+        KEY `credential_id` (`credential_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+}
+
+// 6. Orders remember which storefront they came from and what that storefront
+// still calls them, so a re-sync can tell "nothing changed" from "the shop
+// marked it cancelled" without a per-connector mapping table.
+foreach ([
+    'channel_site_id' => "INT(11) DEFAULT NULL",
+    'channel_status'  => "VARCHAR(50) DEFAULT NULL",
+] as $column => $definition) {
+    if (!$CI->db->field_exists($column, $db_prefix . 'salesos_orders')) {
+        $CI->db->query("ALTER TABLE `{$db_prefix}salesos_orders` ADD COLUMN `{$column}` {$definition}");
+    }
+}
+
+// Confirmation gate. On by default: in this market a cash-on-delivery order is
+// not trusted until somebody has phoned the customer, which is the same reason
+// fraudcheck exists. Turning it off lets an order go straight to fulfilment.
+add_option('salesos_require_order_confirmation', '1');
+
+// 7. Indexed phone-suffix generated column on core CRM tables, shared by every
 // module's phone-matching (salesos, wooconnector). The old approach matched via
 // RIGHT(REPLACE(REPLACE(REPLACE(phonenumber,...)))) in the WHERE clause, which
 // MySQL/MariaDB cannot use an index through — every lookup was a full table scan.

@@ -229,6 +229,172 @@ class Salesos_model extends App_Model
         ]);
     }
 
+    // ── Channel sites ─────────────────────────────────────────────────────────
+
+    /** @return array every connected storefront, newest first, optionally one platform */
+    public function get_channel_sites(?string $platform = null, bool $active_only = false): array
+    {
+        if ($platform !== null) {
+            $this->db->where('platform', $platform);
+        }
+        if ($active_only) {
+            $this->db->where('is_active', 1);
+        }
+
+        $rows = $this->db->order_by('id', 'desc')
+            ->get(db_prefix() . 'salesos_channel_sites')
+            ->result_array();
+
+        foreach ($rows as &$row) {
+            $row['settings'] = $row['settings'] ? (json_decode($row['settings'], true) ?: []) : [];
+        }
+
+        return $rows;
+    }
+
+    public function get_channel_site(int $id): ?array
+    {
+        $row = $this->db->where('id', $id)
+            ->get(db_prefix() . 'salesos_channel_sites')
+            ->row_array();
+
+        if (!$row) {
+            return null;
+        }
+        $row['settings'] = $row['settings'] ? (json_decode($row['settings'], true) ?: []) : [];
+
+        return $row;
+    }
+
+    /** @return int the site id, 0 on failure */
+    public function save_channel_site(array $data, ?int $id = null): int
+    {
+        $row = [
+            'platform'               => trim($data['platform']),
+            'name'                   => trim($data['name']),
+            'site_url'               => rtrim(trim($data['site_url']), '/'),
+            'credential_id'          => !empty($data['credential_id']) ? (int) $data['credential_id'] : null,
+            'default_lead_status_id' => !empty($data['default_lead_status_id']) ? (int) $data['default_lead_status_id'] : null,
+            'settings'               => json_encode($data['settings'] ?? []),
+            'is_active'              => isset($data['is_active']) ? (int) $data['is_active'] : 1,
+        ];
+
+        if ($id) {
+            $this->db->where('id', $id)->update(db_prefix() . 'salesos_channel_sites', $row);
+
+            return $id;
+        }
+
+        $row['created_at'] = date('Y-m-d H:i:s');
+        $this->db->insert(db_prefix() . 'salesos_channel_sites', $row);
+
+        return (int) $this->db->insert_id();
+    }
+
+    public function delete_channel_site(int $id): bool
+    {
+        // Orders stay: they are kernel-owned history, and losing them because a
+        // storefront was disconnected would take the stock and courier records
+        // attached to them out of context. They simply stop being re-synced.
+        $this->db->where('channel_site_id', $id)
+            ->update(db_prefix() . 'salesos_orders', ['channel_site_id' => null]);
+
+        return $this->db->where('id', $id)->delete(db_prefix() . 'salesos_channel_sites');
+    }
+
+    public function touch_channel_site(int $id): void
+    {
+        $this->db->where('id', $id)
+            ->update(db_prefix() . 'salesos_channel_sites', ['last_synced_at' => date('Y-m-d H:i:s')]);
+    }
+
+    // ── Catalogue matching ────────────────────────────────────────────────────
+
+    /**
+     * Find, or create, the inventory product a channel line item refers to.
+     *
+     * This is generic commerce logic with nothing platform-specific in it, which
+     * is why it lives here rather than in a connector: matching by SKU, falling
+     * back to name, auto-creating the category, and creating the billing item so
+     * the product has a price. A connector's job is only to hand over the
+     * generic shape below.
+     *
+     * @param array $product {sku, name, category_name, image_url, price}
+     * @return int|null product id, or null when there is nothing to match on
+     */
+    public function match_or_create_product(array $product): ?int
+    {
+        $sku  = trim((string) ($product['sku'] ?? ''));
+        $name = trim((string) ($product['name'] ?? ''));
+
+        if ($sku === '' && $name === '') {
+            return null;
+        }
+
+        $existing = null;
+        if ($sku !== '') {
+            $existing = $this->db->where('sku', $sku)->get(db_prefix() . 'inventory_products')->row();
+        }
+        if (!$existing && $name !== '') {
+            $existing = $this->db->where('name', $name)->get(db_prefix() . 'inventory_products')->row();
+        }
+
+        if ($existing) {
+            // Backfill an image the first time the channel gives us one.
+            if (empty($existing->image) && !empty($product['image_url'])) {
+                $this->db->where('id', $existing->id)
+                    ->update(db_prefix() . 'inventory_products', ['image' => $product['image_url']]);
+            }
+
+            return (int) $existing->id;
+        }
+
+        $category_id = $this->match_or_create_category($product['category_name'] ?? '');
+        $price       = (float) ($product['price'] ?? 0.00);
+        $final_sku   = $sku !== '' ? $sku : 'CH-' . substr(md5($name), 0, 8);
+        $final_name  = $name !== '' ? $name : 'Channel product ' . $final_sku;
+
+        // The billing item is what carries the price into invoices and the POS.
+        $this->db->insert(db_prefix() . 'items', [
+            'description'      => $final_name,
+            'long_description' => 'SKU: ' . $final_sku,
+            'rate'             => $price,
+            'unit'             => '',
+            'group_id'         => 0,
+        ]);
+        $item_id = $this->db->insert_id();
+
+        $this->db->insert(db_prefix() . 'inventory_products', [
+            'item_id'       => $item_id,
+            'sku'           => $final_sku,
+            'name'          => $final_name,
+            'category_id'   => $category_id,
+            'image'         => $product['image_url'] ?? null,
+            'reorder_level' => 0.00,
+            'is_active'     => 1,
+            'created_at'    => date('Y-m-d H:i:s'),
+        ]);
+
+        return (int) $this->db->insert_id();
+    }
+
+    private function match_or_create_category(string $name): ?int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $existing = $this->db->where('name', $name)->get(db_prefix() . 'inventory_categories')->row();
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
+        $this->db->insert(db_prefix() . 'inventory_categories', ['name' => $name, 'parent_id' => null]);
+
+        return (int) $this->db->insert_id();
+    }
+
     // ── Read API for add-on modules ───────────────────────────────────────────
     // Add-ons read kernel-owned data through these rather than querying
     // tblsalesos_* directly, so a change to this schema is a change in one

@@ -111,12 +111,12 @@
                                             <tbody>
                                                 <?php foreach ($recent_syncs as $row): ?>
                                                     <tr>
-                                                        <td><strong>#<?= e($row['wc_order_id']) ?></strong></td>
-                                                        <td><?= e($row['site_name']) ?></td>
-                                                        <td><strong><?= number_format($row['eco_total'], 2) ?> BDT</strong></td>
+                                                        <td><strong>#<?= e($row['channel_ref_id']) ?></strong></td>
+                                                        <td><?= e($row['site_name'] ?? '—') ?></td>
+                                                        <td><strong><?= number_format((float) $row['total'], 2) ?> BDT</strong></td>
                                                         <td>
                                                              <?php 
-                                                                 $wc_status = strtolower($row['wc_status'] ?? 'pending');
+                                                                 $wc_status = strtolower($row['channel_status'] ?? 'pending');
                                                                  $status_class = 'default';
                                                                  if ($wc_status === 'completed') $status_class = 'success';
                                                                  elseif ($wc_status === 'processing') $status_class = 'info';
@@ -127,7 +127,7 @@
                                                                  <?= strtoupper(e($wc_status)) ?>
                                                              </span>
                                                         </td>
-                                                        <td><small><?= e($row['synced_at']) ?></small></td>
+                                                        <td><small><?= e($row['created_at']) ?></small></td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>
