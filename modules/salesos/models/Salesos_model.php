@@ -1194,18 +1194,31 @@ class Salesos_model extends App_Model
 
         // 5. High Risk Orders Count
         $high_risk_count = 0;
+        $hr_phones_in = '';
         if ($this->app_modules->is_active('fraudcheck') && $this->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
-            $hr_sql = "
-                SELECT COUNT(DISTINCT o.id) as c 
-                FROM {$db_prefix}salesos_orders o
-                LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
-                LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
-                LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
-                JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
-                WHERE fl.risk_level IN ('high_risk', 'red')
-            ";
-            $hr_res = $this->db->query($hr_sql)->row();
-            $high_risk_count = $hr_res ? (int) $hr_res->c : 0;
+            $hr_rows = $this->db->select('phone')
+                ->where_in('risk_level', ['high_risk', 'red'])
+                ->get($db_prefix . 'fraudcheck_lookups')
+                ->result_array();
+            if (!empty($hr_rows)) {
+                $raw_phones = array_unique(array_filter(array_column($hr_rows, 'phone')));
+                if (!empty($raw_phones)) {
+                    $escaped = array_map([$this->db, 'escape'], $raw_phones);
+                    $hr_phones_in = implode(',', $escaped);
+                    $hr_sql = "
+                        SELECT COUNT(DISTINCT o.id) as c 
+                        FROM {$db_prefix}salesos_orders o
+                        LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+                        LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
+                        LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
+                        WHERE con.phonenumber IN ({$hr_phones_in}) 
+                           OR c.phonenumber IN ({$hr_phones_in}) 
+                           OR l.phonenumber IN ({$hr_phones_in})
+                    ";
+                    $hr_res = $this->db->query($hr_sql)->row();
+                    $high_risk_count = $hr_res ? (int) $hr_res->c : 0;
+                }
+            }
         }
         $data['high_risk_count'] = $high_risk_count;
 
@@ -1293,7 +1306,7 @@ class Salesos_model extends App_Model
 
         // 8. Top Urgent Risk Orders (3 items)
         $urgent_risk_orders = [];
-        if ($high_risk_count > 0 && $this->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
+        if ($high_risk_count > 0 && !empty($hr_phones_in)) {
             $urg_sql = "
                 SELECT 
                     o.id,
@@ -1302,19 +1315,37 @@ class Salesos_model extends App_Model
                     o.status,
                     o.created_at,
                     COALESCE(NULLIF(TRIM(CONCAT(con.firstname, ' ', con.lastname)), ''), c.company, l.name, 'Customer') as customer_name,
-                    COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
-                    fl.risk_level,
-                    fl.success_ratio
+                    COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone
                 FROM {$db_prefix}salesos_orders o
                 LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
                 LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
                 LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
-                JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
-                WHERE fl.risk_level IN ('high_risk', 'red')
+                WHERE con.phonenumber IN ({$hr_phones_in}) 
+                   OR c.phonenumber IN ({$hr_phones_in}) 
+                   OR l.phonenumber IN ({$hr_phones_in})
                 ORDER BY o.created_at DESC
                 LIMIT 3
             ";
             $urgent_risk_orders = $this->db->query($urg_sql)->result_array();
+            if (!empty($urgent_risk_orders)) {
+                $urg_phones = array_filter(array_column($urgent_risk_orders, 'customer_phone'));
+                if (!empty($urg_phones)) {
+                    $u_lookups = $this->db->select('phone, risk_level, success_ratio')
+                        ->where_in('phone', array_unique($urg_phones))
+                        ->get($db_prefix . 'fraudcheck_lookups')
+                        ->result_array();
+                    $u_map = [];
+                    foreach ($u_lookups as $ul) {
+                        $u_map[$ul['phone']] = $ul;
+                    }
+                    foreach ($urgent_risk_orders as &$uro) {
+                        $p = $uro['customer_phone'];
+                        $uro['risk_level']    = $u_map[$p]['risk_level'] ?? 'high_risk';
+                        $uro['success_ratio'] = $u_map[$p]['success_ratio'] ?? 0;
+                    }
+                    unset($uro);
+                }
+            }
         }
         $data['urgent_risk_orders'] = $urgent_risk_orders;
 
@@ -1376,14 +1407,6 @@ class Salesos_model extends App_Model
                LEFT JOIN {$db_prefix}courier_accounts ca ON ca.id = cc.courier_account_id"
             : "";
 
-        $fraud_has_tables = $this->db->table_exists($db_prefix . 'fraudcheck_lookups');
-        $fraud_select = $fraud_has_tables
-            ? "fl.risk_level as fraud_risk_level, fl.success_ratio as fraud_success_ratio"
-            : "NULL as fraud_risk_level, NULL as fraud_success_ratio";
-        $fraud_join = $fraud_has_tables
-            ? "LEFT JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)"
-            : "";
-
         $recent_sql = "
             SELECT 
                 o.*,
@@ -1397,19 +1420,42 @@ class Salesos_model extends App_Model
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
                 {$courier_select},
-                {$fraud_select},
+                NULL as fraud_risk_level,
+                NULL as fraud_success_ratio,
                 (SELECT COUNT(*) FROM {$db_prefix}salesos_order_items oi WHERE oi.order_id = o.id) as item_count
             FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
             {$courier_join}
-            {$fraud_join}
             WHERE o.channel != 'test_channel'
             ORDER BY o.created_at DESC
             LIMIT 8
         ";
-        $data['recent_orders'] = $this->db->query($recent_sql)->result_array();
+        $recent_orders = $this->db->query($recent_sql)->result_array();
+
+        if ($this->db->table_exists($db_prefix . 'fraudcheck_lookups') && !empty($recent_orders)) {
+            $phones = array_filter(array_column($recent_orders, 'customer_phone'));
+            if (!empty($phones)) {
+                $lookups = $this->db->select('phone, risk_level, success_ratio')
+                    ->where_in('phone', array_unique($phones))
+                    ->get($db_prefix . 'fraudcheck_lookups')
+                    ->result_array();
+                $lookup_map = [];
+                foreach ($lookups as $l) {
+                    $lookup_map[$l['phone']] = $l;
+                }
+                foreach ($recent_orders as &$ro) {
+                    $p = $ro['customer_phone'];
+                    if (isset($lookup_map[$p])) {
+                        $ro['fraud_risk_level']    = $lookup_map[$p]['risk_level'];
+                        $ro['fraud_success_ratio'] = $lookup_map[$p]['success_ratio'];
+                    }
+                }
+                unset($ro);
+            }
+        }
+        $data['recent_orders'] = $recent_orders;
 
         $cached_data = $data;
         return $cached_data;

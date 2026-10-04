@@ -8,6 +8,9 @@ if (!isset($CI)) {
 
 $db_prefix = db_prefix();
 
+$charset = !empty($CI->db->char_set) ? $CI->db->char_set : 'utf8mb4';
+$collat  = !empty($CI->db->dbcollat) ? " COLLATE={$CI->db->dbcollat}" : "";
+
 // Create fraudcheck lookups table
 if (!$CI->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
     $CI->db->query("CREATE TABLE `{$db_prefix}fraudcheck_lookups` (
@@ -24,5 +27,8 @@ if (!$CI->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
         `checked_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
         UNIQUE KEY `phone` (`phone`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    ) ENGINE=InnoDB DEFAULT CHARSET={$charset}{$collat};");
+} elseif (!empty($CI->db->dbcollat)) {
+    // Harmonize collation with Perfex CRM db if it was previously created with server default
+    @$CI->db->query("ALTER TABLE `{$db_prefix}fraudcheck_lookups` CONVERT TO CHARACTER SET {$charset} COLLATE {$CI->db->dbcollat};");
 }
