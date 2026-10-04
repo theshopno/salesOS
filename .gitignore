@@ -45,7 +45,8 @@ pbx_provision_*.env
 test_*.php
 *.txt
 
-# Non-SalesOS / third-party modules
+# Non-SalesOS / third-party modules & backups
+modules/_backup_pre_v2/
 modules/CRM Woocomerce Module*
 modules/*.pdf
 modules/backup/
@@ -66,4 +67,5 @@ modules/planner/
 modules/smartreport/
 modules/surveys/
 modules/theme_style/
+
 

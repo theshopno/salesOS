@@ -5,13 +5,13 @@ defined('BASEPATH') or exit('No direct script access allowed');
 /*
 Module Name: PBX Pilot
 Description: Voice & Agency Platform for Perfex CRM — Asterisk PBX telephony, AI call intelligence, and agency workflows.
-Version: 2.0.0
+Version: 1.0.0
 Requires at least: 2.3.4
 Developer: PBX Pilot
 */
 
 define('PBXPILOT_MODULE_NAME', 'pbxpilot');
-define('PBXPILOT_VERSION', '2.0.0');
+define('PBXPILOT_VERSION', '1.0.0');
 
 register_language_files(PBXPILOT_MODULE_NAME, [PBXPILOT_MODULE_NAME]);
 
