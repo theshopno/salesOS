@@ -20,3 +20,50 @@ pbx_provision_*.env
 
 # Build artifacts — installable module packages, not source
 /dist/
+
+# Perfex CRM core framework & platform assets (repository tracks SalesOS suite & docs only)
+/application/
+/assets/
+/system/
+/uploads/
+/media/
+/resources/
+/temp/
+/bc/
+/Project_model/
+/composer.json
+/composer.lock
+/package.json
+/pipe.php
+/index.php
+/.htaccess
+/web.config
+/webpack.mix.js
+/tailwind.config.js
+
+# Temporary test scripts and log dumps
+test_*.php
+*.txt
+
+# Non-SalesOS / third-party modules
+modules/CRM Woocomerce Module*
+modules/*.pdf
+modules/backup/
+modules/bkash/
+modules/cbook/
+modules/einvoice/
+modules/exports/
+modules/goals/
+modules/ideal/
+modules/index.html
+modules/meetings/
+modules/menu_setup/
+modules/mreport/
+modules/nudge/
+modules/openai/
+modules/performancereport/
+modules/planner/
+modules/smartreport/
+modules/surveys/
+modules/theme_style/
+

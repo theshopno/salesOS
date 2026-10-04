@@ -184,16 +184,69 @@ foreach ([
 // fraudcheck exists. Turning it off lets an order go straight to fulfilment.
 add_option('salesos_require_order_confirmation', '1');
 
-// 7. Indexed phone-suffix generated column on core CRM tables, shared by every
-// module's phone-matching (salesos, wooconnector). The old approach matched via
-// RIGHT(REPLACE(REPLACE(REPLACE(phonenumber,...)))) in the WHERE clause, which
-// MySQL/MariaDB cannot use an index through — every lookup was a full table scan.
-// A STORED generated column can be indexed normally.
+// The cost of the goods on this line at the moment it was sold. Reading today's
+// cost back for an old order would rewrite last month's margin every time a
+// supplier changed their price, so it is captured once and never recalculated.
+if (!$CI->db->field_exists('unit_cost', $db_prefix . 'salesos_order_items')) {
+    $CI->db->query("ALTER TABLE `{$db_prefix}salesos_order_items`
+        ADD COLUMN `unit_cost` DECIMAL(15,2) DEFAULT NULL AFTER `unit_price`");
+}
+
+// 7. Indexed phone-suffix column on core CRM tables, shared by every
+// module's phone-matching. Uses a STORED generated column if REGEXP_REPLACE is supported,
+// or falls back to a standard nullable indexed column on older MySQL engines.
 foreach (['leads', 'contacts'] as $table) {
     if (!$CI->db->field_exists('phone_suffix10', $db_prefix . $table)) {
-        $CI->db->query("ALTER TABLE `{$db_prefix}{$table}`
-            ADD COLUMN `phone_suffix10` VARCHAR(10)
-                GENERATED ALWAYS AS (RIGHT(REGEXP_REPLACE(phonenumber, '[^0-9]', ''), 10)) STORED,
-            ADD INDEX `phone_suffix10` (`phone_suffix10`);");
+        try {
+            $CI->db->query("ALTER TABLE `{$db_prefix}{$table}`
+                ADD COLUMN `phone_suffix10` VARCHAR(10)
+                    GENERATED ALWAYS AS (RIGHT(REGEXP_REPLACE(phonenumber, '[^0-9]', ''), 10)) STORED,
+                ADD INDEX `phone_suffix10` (`phone_suffix10`);");
+        } catch (\Throwable $e) {
+            try {
+                $CI->db->query("ALTER TABLE `{$db_prefix}{$table}`
+                    ADD COLUMN `phone_suffix10` VARCHAR(10) NULL DEFAULT NULL,
+                    ADD INDEX `phone_suffix10` (`phone_suffix10`);");
+            } catch (\Throwable $e2) {
+                log_activity('SalesOS Install: Could not add phone_suffix10 to ' . $table . ': ' . $e2->getMessage());
+            }
+        }
     }
 }
+
+// 8. Bizbot Webhook idempotency and processed message deduplication
+if (!$CI->db->table_exists($db_prefix . 'salesos_bizbot_processed_messages')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}salesos_bizbot_processed_messages` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `message_id` VARCHAR(120) NOT NULL,
+        `event` VARCHAR(50) NOT NULL,
+        `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `message_id` (`message_id`),
+        KEY `idx_msg_created` (`created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+}
+
+// 9. Default System Options
+$default_options = [
+    'salesos_ecommerce_enabled'             => '1',
+    'salesos_require_order_confirmation'    => '1',
+    'salesos_license_standalone_mode'       => '1', // Default standalone temporary license active
+    'salesos_bizbot_inbound_enabled'        => '1',
+    'salesos_bizbot_twoway_confirm_enabled' => '1',
+    'salesos_bizbot_moderator_order_enabled'=> '1',
+    'salesos_bizbot_auto_assign_reply'      => '1',
+    'salesos_bizbot_lock_assigned_leads'    => '1',
+    'salesos_bizbot_exclude_staff'          => '1',
+    'salesos_bizbot_exclude_suppliers'      => '1',
+    'salesos_bizbot_capture_mode'           => 'all',
+    'salesos_bizbot_order_keyword'          => '#order',
+    'salesos_bizbot_manual_lead_keyword'    => '#lead',
+];
+foreach ($default_options as $opt => $val) {
+    if (get_option($opt) === null) {
+        add_option($opt, $val);
+    }
+}
+
+

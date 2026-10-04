@@ -31,6 +31,7 @@ hooks()->add_action('app_init', 'pbxpilot_load_resources');
 hooks()->add_action('admin_init', 'pbxpilot_register_menu');
 hooks()->add_action('admin_init', 'pbxpilot_register_permissions');
 hooks()->add_action('after_cron_run', 'pbxpilot_cron');
+hooks()->add_action('salesos_order_created', 'pbxpilot_handle_salesos_order_created');
 
 function pbxpilot_load_resources(): void
 {
@@ -59,6 +60,9 @@ function pbxpilot_cron(): void
         $CI->recording_service->cleanup_old_cache($retention_days);
         pbxpilot_update_option('pbxpilot_recording_cleanup_last_run', date('Y-m-d H:i:s'));
     }
+
+    // IVR Queue Sweeper: sweeps uncalled night orders and retries unanswered calls
+    pbxpilot_sweep_ivr_queue();
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────
@@ -108,6 +112,14 @@ function pbxpilot_register_menu(): void
         ]);
     }
 
+    if (staff_can('manage', PBXPILOT_MODULE_NAME) || staff_can('settings', PBXPILOT_MODULE_NAME)) {
+        $CI->app_menu->add_sidebar_children_item('pbxpilot', [
+            'slug'     => 'pbxpilot-agents',
+            'name'     => 'টিম ও চ্যানেল ম্যাপিং',
+            'href'     => admin_url('pbxpilot/agents'),
+            'position' => 3,
+        ]);
+    }
 
     if (staff_can('settings', PBXPILOT_MODULE_NAME)) {
         $CI->app_menu->add_sidebar_children_item('pbxpilot', [
@@ -214,17 +226,51 @@ function pbxpilot_inject_screenpop_poller(): void
         var AUTO_DISMISS_MS = 25000;
         var stack = document.getElementById('pbxpilot-toast-stack');
 
+        var audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) audioCtx = new AudioContextClass();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // Unlock audio on first user click anywhere in the window
+        window.addEventListener('click', function unlockAudio() {
+            getAudioContext();
+            window.removeEventListener('click', unlockAudio);
+        }, { once: true });
+
         function beep() {
             try {
-                var ctx = new (window.AudioContext || window.webkitAudioContext)();
-                var osc = ctx.createOscillator();
-                var gain = ctx.createGain();
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-                osc.connect(gain).connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.35);
+                var ctx = getAudioContext();
+                if (!ctx) return;
+                
+                // Classic phone double-ring chime pattern
+                var now = ctx.currentTime;
+                function playTone(freq, start, duration) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, start);
+                    gain.gain.setValueAtTime(0.25, start);
+                    gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(start);
+                    osc.stop(start + duration);
+                }
+
+                // First ring pair (440Hz + 480Hz US ringback style)
+                playTone(523.25, now, 0.4);       // C5
+                playTone(659.25, now + 0.05, 0.35); // E5
+                
+                // Second ring pair after brief pause
+                playTone(523.25, now + 0.6, 0.4);
+                playTone(659.25, now + 0.65, 0.35);
             } catch (e) {}
         }
 
@@ -276,3 +322,117 @@ function pbxpilot_inject_screenpop_poller(): void
     </script>
     <?php
 }
+
+/**
+ * Automatically dispatch IVR call on new SalesOS order
+ */
+function pbxpilot_handle_salesos_order_created($order_id): void
+{
+    $CI = &get_instance();
+    if (!$CI->app_modules->is_active(PBXPILOT_MODULE_NAME) || !$CI->app_modules->is_active('salesos')) {
+        return;
+    }
+
+    // Check if auto IVR call on order is enabled (default '1')
+    if (pbxpilot_get_option('pbxpilot_auto_ivr_enabled', '1') !== '1') {
+        return;
+    }
+
+    // Calling hours check (default 09:00 - 22:00)
+    $start_hour   = (int) pbxpilot_get_option('pbxpilot_ivr_calling_start_hour', '9');
+    $end_hour     = (int) pbxpilot_get_option('pbxpilot_ivr_calling_end_hour', '22');
+    $current_hour = (int) date('G'); // 0-23
+
+    $CI->load->model('salesos/salesos_model');
+    $order = $CI->salesos_model->get_order((int) $order_id);
+    if (!$order || ($order['status'] ?? '') !== 'pending') {
+        return; // Only call pending (unconfirmed) orders
+    }
+
+    if ($current_hour < $start_hour || $current_hour >= $end_hour) {
+        log_activity("PBX Pilot IVR: Order #{$order_id} arrived outside calling window ({$current_hour}:00). Held for morning window ({$start_hour}:00).");
+        return;
+    }
+
+    $CI->load->library(PBXPILOT_MODULE_NAME . '/Ivr_service');
+    $res = $CI->ivr_service->trigger_order_confirmation((int) $order_id);
+    log_activity("PBX Pilot Auto IVR Trigger for Order #{$order_id}: " . json_encode($res));
+}
+
+/**
+ * Cron Sweeper: Dispatches calls for pending uncalled orders (e.g. placed at night)
+ * and retries unanswered calls once retry delay has passed.
+ */
+function pbxpilot_sweep_ivr_queue(): void
+{
+    $CI = &get_instance();
+    if (!$CI->app_modules->is_active(PBXPILOT_MODULE_NAME) || !$CI->app_modules->is_active('salesos')) {
+        return;
+    }
+
+    if (pbxpilot_get_option('pbxpilot_auto_ivr_enabled', '1') !== '1') {
+        return;
+    }
+
+    $start_hour   = (int) pbxpilot_get_option('pbxpilot_ivr_calling_start_hour', '9');
+    $end_hour     = (int) pbxpilot_get_option('pbxpilot_ivr_calling_end_hour', '22');
+    $current_hour = (int) date('G');
+
+    // Only sweep during permitted calling hours
+    if ($current_hour < $start_hour || $current_hour >= $end_hour) {
+        return;
+    }
+
+    $max_retries = (int) pbxpilot_get_option('pbxpilot_ivr_max_retries', '2');
+    $retry_delay = (int) pbxpilot_get_option('pbxpilot_ivr_retry_delay_minutes', '15');
+    $db_prefix   = db_prefix();
+
+    // 1. Sweep uncalled pending orders created in the last 24h
+    $uncalled_sql = "
+        SELECT o.id 
+        FROM {$db_prefix}salesos_orders o
+        LEFT JOIN {$db_prefix}pbxpilot_ivr_logs l ON l.order_id = o.id
+        WHERE o.status = 'pending'
+          AND o.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          AND l.id IS NULL
+        ORDER BY o.id ASC
+        LIMIT 3
+    ";
+    $uncalled = $CI->db->query($uncalled_sql)->result_array();
+
+    $CI->load->library(PBXPILOT_MODULE_NAME . '/Ivr_service');
+
+    foreach ($uncalled as $row) {
+        $order_id = (int) $row['id'];
+        $CI->ivr_service->trigger_order_confirmation($order_id);
+        log_activity("PBX Pilot IVR Queue Sweeper: Dispatched queued morning call for Order #{$order_id}");
+    }
+
+    // 2. Sweep retry-due orders (where last attempt was failed/no_input and delay has passed)
+    if ($max_retries > 1) {
+        $retry_sql = "
+            SELECT o.id, l.attempt, l.updated_at
+            FROM {$db_prefix}salesos_orders o
+            INNER JOIN (
+                SELECT order_id, MAX(id) as max_id
+                FROM {$db_prefix}pbxpilot_ivr_logs
+                GROUP BY order_id
+            ) latest ON latest.order_id = o.id
+            INNER JOIN {$db_prefix}pbxpilot_ivr_logs l ON l.id = latest.max_id
+            WHERE o.status = 'pending'
+              AND l.result IN ('no_input', 'failed')
+              AND l.attempt < ?
+              AND l.updated_at <= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+            ORDER BY o.id ASC
+            LIMIT 2
+        ";
+        $retries = $CI->db->query($retry_sql, [$max_retries, $retry_delay])->result_array();
+
+        foreach ($retries as $row) {
+            $order_id = (int) $row['id'];
+            $CI->ivr_service->trigger_order_confirmation($order_id);
+            log_activity("PBX Pilot IVR Queue Sweeper: Dispatched retry call for Order #{$order_id} (Attempt " . ($row['attempt'] + 1) . ")");
+        }
+    }
+}
+

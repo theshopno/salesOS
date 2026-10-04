@@ -1,6 +1,245 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
 
+<style>
+/* ── Modern Order Manager Styling ── */
+.order-header-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.order-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* KPI Summary Metric Cards */
+.kpi-metric-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-height: 78px;
+}
+.kpi-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+    border-color: #cbd5e1;
+}
+.kpi-metric-card.active-kpi {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.kpi-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+}
+.kpi-val {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.kpi-sub {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 3px;
+    display: block;
+}
+.kpi-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* Filter Toolbar */
+.order-filter-toolbar {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 16px 4px 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+/* Bulk Actions Floating Bar */
+#bulk-actions-bar {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Table Styling */
+.table-orders > thead > tr > th {
+    background: #f8fafc !important;
+    color: #475569;
+    font-weight: 700;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0 !important;
+    vertical-align: middle;
+}
+.table-orders > tbody > tr > td {
+    vertical-align: middle !important;
+    font-size: 12px;
+}
+.table-orders > tbody > tr:hover {
+    background-color: #f8fafc !important;
+}
+
+/* Channel Pills */
+.pill-channel-woo {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-pos {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-manual {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-whatsapp {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-pos-online {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Status Pills */
+.pill-status {
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.pill-status-confirmed {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+.pill-status-processing {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #7dd3fc;
+}
+.pill-status-delivered {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #d8b4fe;
+}
+.pill-status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+/* Fraud Badge */
+.fraud-badge-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+/* WhatsApp Quick Connect */
+.btn-whatsapp-quick {
+    background: #25d366;
+    color: #ffffff !important;
+    border: 1px solid #22c55e;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none !important;
+    transition: background 0.15s;
+}
+.btn-whatsapp-quick:hover {
+    background: #16a34a;
+}
+</style>
+
 <div id="wrapper">
     <div class="content">
         <div class="row">
@@ -9,155 +248,388 @@
                     <div class="panel-body">
                         
                         <!-- Header -->
-                        <div class="row mbot20">
-                            <div class="col-md-6">
-                                <h4 class="no-margin bold font-medium text-primary"><i class="fa fa-list"></i> E-commerce Synced Orders</h4>
-                                <span class="text-muted">Browse, search, and manage all synced orders from WooCommerce, POS, and other channels.</span>
+                        <div class="order-header-wrap">
+                            <div>
+                                <h4 class="no-margin bold text-primary" style="font-size: 20px; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa fa-shopping-bag text-primary"></i> Order Manager (ই-কমার্স ও POS অর্ডারসমূহ)
+                                </h4>
+                                <span class="text-muted" style="display: block; margin-top: 4px;">
+                                    WooCommerce, POS কাউন্টার ও সোশ্যাল চ্যানেলের সকল অর্ডার, কাস্টমার ভেরিফিকেশন ও কুরিয়ার ট্র্যাকিং সেন্টার।
+                                </span>
                             </div>
-                            <div class="col-md-6 text-right">
+                            <div class="order-header-actions">
+                                <a href="<?= admin_url('pos') ?>" class="btn btn-success" style="font-weight: 700; border-radius: 6px;">
+                                    <i class="fa fa-desktop"></i> Open POS
+                                </a>
                                 <?php if (staff_can('settings', 'salesos')): ?>
-                                    <a href="<?= admin_url('salesos/integrations') ?>" class="btn btn-default">
-                                        <i class="fa fa-cogs"></i> Integrations
+                                    <a href="<?= admin_url('salesos/settings?tab=channels') ?>" class="btn btn-default" style="font-weight: 600; border-color: #cbd5e1; border-radius: 6px;">
+                                        <i class="fa fa-plug text-primary"></i> Integrations
                                     </a>
                                 <?php endif; ?>
-                                <a href="<?= admin_url('salesos') ?>" class="btn btn-primary">
-                                    <i class="fa fa-dashboard"></i> Dashboard
+                                <a href="<?= admin_url('salesos') ?>" class="btn btn-primary" style="font-weight: 600; border-radius: 6px;">
+                                    <i class="fa fa-tachometer"></i> Dashboard
                                 </a>
                             </div>
                         </div>
-                        <hr class="hr-panel-separator" />
 
-                        <!-- Filters Section -->
-                        <?= form_open(admin_url('salesos/orders'), ['method' => 'get', 'id' => 'orders-filter-form']) ?>
-                        <div class="row mbot20" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px 15px 5px 15px; margin: 0 0 20px 0;">
-                            
-                            <!-- Search -->
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="search" class="control-label">Search Order</label>
-                                    <input type="text" name="search" id="search" class="form-control" placeholder="Search ID, customer name, phone, Ref ID..." value="<?= e($search ?? '') ?>">
+                        <!-- ── Top KPI Metrics Summary Bar (Clickable) ── -->
+                        <div class="row mbot15">
+                            <!-- Card 1: Total Orders & Revenue -->
+                            <div class="col-md-2 col-sm-4 col-xs-6 mbot10" style="padding: 0 6px;">
+                                <div class="kpi-metric-card" id="kpi-card-all" data-filter-status="" title="সকল অর্ডার দেখুন">
+                                    <div>
+                                        <div class="kpi-lbl" style="color: #2563eb;">মোট অর্ডার</div>
+                                        <div class="kpi-val" style="color: #1d4ed8;"><?= (int)($kpi['total_orders'] ?? 0) ?></div>
+                                        <span class="kpi-sub text-muted"><?= salesos_format_number((float)($kpi['total_revenue'] ?? 0)) ?> BDT</span>
+                                    </div>
+                                    <div class="kpi-icon-box" style="background: #eff6ff; color: #2563eb;">
+                                        <i class="fa fa-shopping-basket"></i>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- Channel -->
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="channel" class="control-label">Channel</label>
-                                    <select name="channel" id="channel" class="form-control">
-                                        <option value="">All Channels</option>
-                                        <option value="woo" <?= (isset($selected_channel) && $selected_channel === 'woo') ? 'selected' : '' ?>>WooCommerce (WOO)</option>
-                                        <option value="pos" <?= (isset($selected_channel) && $selected_channel === 'pos') ? 'selected' : '' ?>>Point of Sale (POS)</option>
-                                    </select>
+                            <!-- Card 2: Pending Confirmation -->
+                            <div class="col-md-2 col-sm-4 col-xs-6 mbot10" style="padding: 0 6px;">
+                                <div class="kpi-metric-card" id="kpi-card-pending" data-filter-status="pending" title="পেন্ডিং অর্ডার ফিল্টার করুন">
+                                    <div>
+                                        <div class="kpi-lbl" style="color: #d97706;">অপেক্ষমান</div>
+                                        <div class="kpi-val" style="color: #b45309;"><?= (int)($kpi['pending_count'] ?? 0) ?></div>
+                                        <span class="kpi-sub text-muted">কল ও ভেরিফিকেশন বাকি</span>
+                                    </div>
+                                    <div class="kpi-icon-box" style="background: #fef3c7; color: #d97706;">
+                                        <i class="fa fa-phone"></i>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- Status -->
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="status" class="control-label">Status</label>
-                                    <select name="status" id="status" class="form-control">
-                                        <option value="">All Statuses</option>
-                                        <option value="pending" <?= (isset($selected_status) && $selected_status === 'pending') ? 'selected' : '' ?>>Pending</option>
-                                        <option value="confirmed" <?= (isset($selected_status) && $selected_status === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
-                                        <option value="cancelled" <?= (isset($selected_status) && $selected_status === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                                    </select>
+                            <!-- Card 3: Ready / Confirmed & Processing -->
+                            <div class="col-md-2 col-sm-4 col-xs-6 mbot10" style="padding: 0 6px;">
+                                <div class="kpi-metric-card" id="kpi-card-ready" data-filter-status="confirmed" title="রেডি ও প্রসেসিং অর্ডার দেখুন">
+                                    <div>
+                                        <div class="kpi-lbl" style="color: #4f46e5;">প্রসেসিং ও প্রস্তুত</div>
+                                        <div class="kpi-val" style="color: #4338ca;"><?= (int)(($kpi['confirmed_count'] ?? 0) + ($kpi['processing_count'] ?? 0)) ?></div>
+                                        <span class="kpi-sub text-muted">প্যাকেজিং ও ডিসপ্যাচ</span>
+                                    </div>
+                                    <div class="kpi-icon-box" style="background: #e0e7ff; color: #4f46e5;">
+                                        <i class="fa fa-cube"></i>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- Action Buttons -->
-                            <div class="col-md-2" style="margin-top: 25px;">
-                                <button type="submit" class="btn btn-primary btn-block"><i class="fa fa-filter"></i> Filter</button>
-                                <a href="<?= admin_url('salesos/orders') ?>" class="btn btn-default btn-block" style="margin-top: 5px;">Reset</a>
+                            <!-- Card 4: Courier Shipped / Booked -->
+                            <div class="col-md-3 col-sm-6 col-xs-6 mbot10" style="padding: 0 6px;">
+                                <div class="kpi-metric-card" id="kpi-card-courier" data-filter-courier="booked" title="কুরিয়ারে বুক হওয়া পার্সেল">
+                                    <div>
+                                        <div class="kpi-lbl" style="color: #059669;">কুরিয়ারে প্রেরিত</div>
+                                        <div class="kpi-val" style="color: #047857;"><?= (int)($kpi['courier_booked_count'] ?? 0) ?></div>
+                                        <span class="kpi-sub text-muted">পার্সেল ডেলিভারিতে আছে</span>
+                                    </div>
+                                    <div class="kpi-icon-box" style="background: #ecfdf5; color: #059669;">
+                                        <i class="fa fa-truck"></i>
+                                    </div>
+                                </div>
                             </div>
-
+                            <!-- Card 5: High Risk Alert -->
+                            <div class="col-md-3 col-sm-6 col-xs-12 mbot10" style="padding: 0 6px;">
+                                <div class="kpi-metric-card" id="kpi-card-risk" data-filter-risk="high" title="সন্দেহভাজন ফ্রড অর্ডার দেখুন">
+                                    <div>
+                                        <div class="kpi-lbl" style="color: #dc2626;">উচ্চ ঝুঁকি অ্যালার্ট</div>
+                                        <div class="kpi-val" style="color: #b91c1c;"><?= (int)($kpi['high_risk_count'] ?? 0) ?></div>
+                                        <span class="kpi-sub text-muted">কম ডেলিভারি রেশিও ফ্রড</span>
+                                    </div>
+                                    <div class="kpi-icon-box" style="background: #fee2e2; color: #dc2626;">
+                                        <i class="fa fa-shield"></i>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <?= form_close() ?>
 
-                        <!-- Orders Table -->
+                        <!-- ── Instant Search & Filter Toolbar ── -->
+                        <div class="order-filter-toolbar">
+                            <div class="row">
+                                <div class="col-md-3 col-sm-6 mbot10">
+                                    <div class="input-group">
+                                        <span class="input-group-addon" style="background: #f8fafc; border-color: #cbd5e1;"><i class="fa fa-search text-muted"></i></span>
+                                        <input type="text" id="order-search" class="form-control" placeholder="অর্ডার #, নাম, ফোন, Ref ID..." value="<?= e($search ?? '') ?>" style="border-color: #cbd5e1;">
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-sm-6 mbot10">
+                                    <select id="filter-channel" class="form-control" style="border-color: #cbd5e1;">
+                                        <option value="">সকল চ্যানেল (All Channels)</option>
+                                        <option value="woo" <?= (isset($selected_channel) && in_array($selected_channel, ['woo', 'woocommerce'], true)) ? 'selected' : '' ?>>WooCommerce (WOO)</option>
+                                        <option value="pos" <?= (isset($selected_channel) && $selected_channel === 'pos') ? 'selected' : '' ?>>Point of Sale - Counter (POS)</option>
+                                        <option value="pos_online" <?= (isset($selected_channel) && $selected_channel === 'pos_online') ? 'selected' : '' ?>>POS Online Delivery (অনলাইন)</option>
+                                        <option value="whatsapp" <?= (isset($selected_channel) && $selected_channel === 'whatsapp') ? 'selected' : '' ?>>WhatsApp (BIZBOT)</option>
+                                        <option value="manual" <?= (isset($selected_channel) && $selected_channel === 'manual') ? 'selected' : '' ?>>Manual / Social (MANUAL)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 col-sm-6 mbot10">
+                                    <select id="filter-status" class="form-control" style="border-color: #cbd5e1;">
+                                        <option value="">সকল স্ট্যাটাস (All Statuses)</option>
+                                        <option value="pending" <?= (isset($selected_status) && $selected_status === 'pending') ? 'selected' : '' ?>>Pending (অপেক্ষমান)</option>
+                                        <option value="confirmed" <?= (isset($selected_status) && $selected_status === 'confirmed') ? 'selected' : '' ?>>Confirmed (নিশ্চিত)</option>
+                                        <option value="processing" <?= (isset($selected_status) && $selected_status === 'processing') ? 'selected' : '' ?>>Processing (প্রসেসিং)</option>
+                                        <option value="delivered" <?= (isset($selected_status) && $selected_status === 'delivered') ? 'selected' : '' ?>>Delivered (ডেলিভার্ড)</option>
+                                        <option value="cancelled" <?= (isset($selected_status) && $selected_status === 'cancelled') ? 'selected' : '' ?>>Cancelled (বাতিল)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 col-sm-6 mbot10">
+                                    <select id="filter-courier" class="form-control" style="border-color: #cbd5e1;">
+                                        <option value="">কুরিয়ার স্ট্যাটাস (All)</option>
+                                        <option value="unbooked" <?= (isset($selected_courier_status) && $selected_courier_status === 'unbooked') ? 'selected' : '' ?>>কুরিয়ার বাকি (Unbooked)</option>
+                                        <option value="booked" <?= (isset($selected_courier_status) && $selected_courier_status === 'booked') ? 'selected' : '' ?>>কুরিয়ারে বুকড (Booked)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 col-sm-6 mbot10">
+                                    <select id="filter-date" class="form-control" style="border-color: #cbd5e1;">
+                                        <option value="">সকল সময় (All Time)</option>
+                                        <option value="today" <?= (isset($selected_date_range) && $selected_date_range === 'today') ? 'selected' : '' ?>>আজকের অর্ডার (Today)</option>
+                                        <option value="yesterday" <?= (isset($selected_date_range) && $selected_date_range === 'yesterday') ? 'selected' : '' ?>>গতকাল (Yesterday)</option>
+                                        <option value="this_week" <?= (isset($selected_date_range) && $selected_date_range === 'this_week') ? 'selected' : '' ?>>এই সপ্তাহ (This Week)</option>
+                                        <option value="this_month" <?= (isset($selected_date_range) && $selected_date_range === 'this_month') ? 'selected' : '' ?>>এই মাস (This Month)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-1 col-sm-6 mbot10 text-right">
+                                    <button type="button" id="btn-reset-filters" class="btn btn-default btn-block" style="border-color: #cbd5e1; font-weight: 600;" title="ফিল্টার রিসেট করুন">
+                                        <i class="fa fa-refresh text-muted"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Bulk Actions Floating Toolbar ── -->
+                        <div id="bulk-actions-bar" style="display: none;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fa fa-check-square-o text-primary" style="font-size: 16px;"></i>
+                                <span style="font-weight: 700; color: #1e40af;"><span id="bulk-selected-count">0</span> টি অর্ডার সিলেক্ট করা হয়েছে</span>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-success btn-xs btn-bulk-action" data-action="confirmed" style="font-weight: 600; padding: 4px 10px;">
+                                    <i class="fa fa-check"></i> Mark Confirmed
+                                </button>
+                                <button type="button" class="btn btn-info btn-xs btn-bulk-action" data-action="processing" style="font-weight: 600; padding: 4px 10px;">
+                                    <i class="fa fa-cube"></i> Mark Processing
+                                </button>
+                                <button type="button" class="btn btn-danger btn-xs btn-bulk-action" data-action="cancelled" style="font-weight: 600; padding: 4px 10px;">
+                                    <i class="fa fa-ban"></i> Cancel Selected
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ── Modernized Orders Table ── -->
                         <div class="table-responsive">
-                            <table class="table table-bordered table-striped no-mtop">
+                            <table class="table table-bordered table-striped table-orders no-mtop" id="orders-main-table">
                                 <thead>
                                     <tr>
-                                        <th>Order ID</th>
-                                        <th>Customer</th>
-                                        <th>Channel</th>
-                                        <th>Reference ID</th>
-                                        <th>Total Amount (BDT)</th>
-                                        <th>Status</th>
-                                        <th>Order Date</th>
-                                        <th class="text-center">Actions</th>
+                                        <th style="width: 35px; text-align: center;">
+                                            <input type="checkbox" id="select-all-orders" title="Select All Visible">
+                                        </th>
+                                        <th style="width: 75px;">Order #</th>
+                                        <th style="min-width: 170px;">Customer & Contact</th>
+                                        <th style="width: 100px;">Channel</th>
+                                        <th style="width: 110px;">Reference ID</th>
+                                        <th style="width: 125px;">Amount & Items</th>
+                                        <th style="width: 120px; text-align: center;">Status</th>
+                                        <th style="min-width: 130px;">Courier / Dispatch</th>
+                                        <th style="width: 130px;">Date & Time</th>
+                                        <th class="text-center" style="width: 120px;">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="orders-table-body">
                                     <?php if (empty($orders)): ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center text-muted">No orders found matching the filter criteria.</td>
+                                        <tr class="no-orders-row">
+                                            <td colspan="10" class="text-center text-muted" style="padding: 30px;">
+                                                <i class="fa fa-shopping-cart fa-3x" style="color: #cbd5e1; display: block; margin-bottom: 10px;"></i>
+                                                কোনো অর্ডার খুঁজে পাওয়া যায়নি।
+                                            </td>
                                         </tr>
                                     <?php else: ?>
                                         <?php foreach ($orders as $order): ?>
-                                            <tr>
-                                                <td class="bold">#<?= $order['id'] ?></td>
-                                                 <td>
-                                                     <strong class="display-block"><?= e($order['customer_name']) ?></strong>
-                                                     <small class="text-muted"><?= e($order['customer_phone'] ?: 'No Phone') ?></small>
-                                                     <?php if (!empty($order['fraud_risk_level'])): ?>
-                                                         <span class="label display-block mtop5 inline-block text-uppercase text-center" 
-                                                               style="font-size: 8px; padding: 1px 4px; font-weight: normal; background-color: <?= e($order['fraud_risk_color']) ?>; color: white;" 
-                                                               title="BDCourier Success Ratio: <?= e($order['fraud_success_ratio']) ?>%">
-                                                              <?php
-                                                              $raw_risk = $order['fraud_risk_level'];
-                                                              $risk_norm = strtoupper(str_replace('_', ' ', $raw_risk));
-                                                              if ($risk_norm === 'HIGH RISK' || $risk_norm === 'RED') {
-                                                                  $risk_lbl = 'High Risk';
-                                                              } elseif ($risk_norm === 'MEDIUM RISK' || $risk_norm === 'YELLOW' || $risk_norm === 'ORANGE') {
-                                                                  $risk_lbl = 'Medium Risk';
-                                                              } elseif ($risk_norm === 'NO RISK' || $risk_norm === 'SAFE' || $risk_norm === 'GREEN') {
-                                                                  $risk_lbl = 'No Risk';
-                                                              } else {
-                                                                  $risk_lbl = ucwords(strtolower(str_replace('_', ' ', $raw_risk)));
-                                                              }
-                                                              echo e($risk_lbl);
-                                                              ?> (<?= e(round((float)$order['fraud_success_ratio'])) ?>%)
-                                                         </span>
-                                                     <?php endif; ?>
-                                                 </td>
+                                            <?php 
+                                                $ch = strtolower($order['channel'] ?? '');
+                                                $st = strtolower($order['status'] ?? 'pending');
+                                                $raw_risk = $order['fraud_risk_level'] ?? '';
+                                                $risk_norm = strtoupper(str_replace('_', ' ', $raw_risk));
+                                                $is_high_risk = ($risk_norm === 'HIGH RISK' || $risk_norm === 'RED');
+                                                $clean_phone = preg_replace('/[^0-9]/', '', (string)$order['customer_phone']);
+                                                if (strpos($clean_phone, '88') !== 0 && strlen($clean_phone) === 11) {
+                                                    $clean_phone = '88' . $clean_phone;
+                                                }
+                                            ?>
+                                            <tr class="order-table-row" 
+                                                id="order-row-<?= $order['id'] ?>"
+                                                data-id="<?= $order['id'] ?>"
+                                                data-channel="<?= e($ch) ?>"
+                                                data-status="<?= e($st) ?>"
+                                                data-courier="<?= !empty($order['consignment_id']) ? 'booked' : 'unbooked' ?>"
+                                                data-risk="<?= $is_high_risk ? 'high' : 'normal' ?>"
+                                                data-search-text="<?= htmlspecialchars(strtolower($order['id'] . ' ' . $order['customer_name'] . ' ' . $order['customer_phone'] . ' ' . $order['channel_ref_id'] . ' ' . $order['channel']), ENT_QUOTES) ?>">
+                                                
+                                                <!-- Checkbox -->
+                                                <td style="text-align: center;">
+                                                    <input type="checkbox" class="order-chk" value="<?= $order['id'] ?>">
+                                                </td>
+
+                                                <!-- Order ID -->
                                                 <td>
-                                                    <span class="label label-default">
-                                                        <?= strtoupper(e($order['channel'])) ?>
+                                                    <strong style="font-size: 13px; color: #1e293b;">#<?= $order['id'] ?></strong>
+                                                </td>
+
+                                                <!-- Customer & Contact -->
+                                                <td>
+                                                    <strong style="color: #0f172a; font-size: 13px; display: block;"><?= e($order['customer_name']) ?></strong>
+                                                    <div style="display: flex; align-items: center; gap: 5px; margin-top: 3px; flex-wrap: wrap;">
+                                                        <?php if (!empty($order['customer_phone'])): ?>
+                                                            <a href="tel:<?= e($order['customer_phone']) ?>" class="text-muted" style="font-size: 11px; text-decoration: none;" title="Call Customer">
+                                                                <i class="fa fa-phone text-muted" style="font-size: 10px;"></i> <?= e($order['customer_phone']) ?>
+                                                            </a>
+                                                            <?php if (!empty($clean_phone)): ?>
+                                                                <a href="https://wa.me/<?= e($clean_phone) ?>" target="_blank" class="btn-whatsapp-quick" title="WhatsApp এ মেসেজ পাঠান">
+                                                                    <i class="fa fa-whatsapp"></i> Chat
+                                                                </a>
+                                                            <?php endif; ?>
+                                                        <?php else: ?>
+                                                            <small class="text-muted">No Phone</small>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <!-- Fraud Risk Badge -->
+                                                    <?php if (!empty($order['fraud_risk_level'])): ?>
+                                                        <div>
+                                                            <?php
+                                                            if ($is_high_risk) {
+                                                                $risk_lbl = 'High Risk';
+                                                                $badge_style = 'background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;';
+                                                                $risk_icon = 'fa-shield text-danger';
+                                                            } elseif ($risk_norm === 'MEDIUM RISK' || $risk_norm === 'YELLOW' || $risk_norm === 'ORANGE') {
+                                                                $risk_lbl = 'Medium Risk';
+                                                                $badge_style = 'background: #fef3c7; color: #92400e; border: 1px solid #fde68a;';
+                                                                $risk_icon = 'fa-exclamation-circle text-warning';
+                                                            } else {
+                                                                $risk_lbl = 'Safe';
+                                                                $badge_style = 'background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;';
+                                                                $risk_icon = 'fa-check-circle text-success';
+                                                            }
+                                                            ?>
+                                                            <span class="fraud-badge-pill" style="<?= $badge_style ?>" title="BDCourier Success Ratio: <?= e($order['fraud_success_ratio']) ?>%">
+                                                                <i class="fa <?= $risk_icon ?>"></i> <?= e($risk_lbl) ?> (<?= e(round((float)$order['fraud_success_ratio'])) ?>%)
+                                                            </span>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
+
+                                                <!-- Channel -->
+                                                <td>
+                                                    <?php if ($ch === 'woo' || $ch === 'woocommerce'): ?>
+                                                        <span class="pill-channel-woo"><i class="fa fa-shopping-cart"></i> WOO</span>
+                                                    <?php elseif ($ch === 'pos'): ?>
+                                                        <span class="pill-channel-pos"><i class="fa fa-desktop"></i> POS</span>
+                                                    <?php elseif ($ch === 'pos_online'): ?>
+                                                        <span class="pill-channel-pos-online"><i class="fa fa-truck"></i> POS ONLINE</span>
+                                                    <?php elseif ($ch === 'whatsapp'): ?>
+                                                        <span class="pill-channel-whatsapp"><i class="fa fa-whatsapp"></i> WHATSAPP</span>
+                                                    <?php else: ?>
+                                                        <span class="pill-channel-manual"><i class="fa fa-phone"></i> <?= strtoupper(e($ch ?: 'MANUAL')) ?></span>
+                                                    <?php endif; ?>
+                                                </td>
+
+                                                <!-- Reference ID -->
+                                                <td>
+                                                    <span class="label" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-family: monospace; font-size: 11px; font-weight: 600;">
+                                                        <?= e($order['channel_ref_id'] ?: '-') ?>
                                                     </span>
                                                 </td>
-                                                <td><?= e($order['channel_ref_id'] ?: '-') ?></td>
-                                                <td><span class="text-semibold text-dark"><?= salesos_format_number($order['total']) ?> BDT</span></td>
+
+                                                <!-- Total Amount & Items -->
                                                 <td>
+                                                    <div style="font-weight: 700; color: #0f172a; font-size: 13px;">
+                                                        <?= salesos_format_number($order['total']) ?> <span style="font-size: 10px; font-weight: normal; color: #64748b;">BDT</span>
+                                                    </div>
+                                                    <div style="margin-top: 3px;">
+                                                        <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-size: 10px; font-weight: 600;">
+                                                            <?= (int)($order['item_count'] ?? 1) ?> item<?= ($order['item_count'] ?? 1) > 1 ? 's' : '' ?>
+                                                        </span>
+                                                        <?php if (!empty($order['payment_method'])): ?>
+                                                            <span class="text-muted" style="font-size: 10px; margin-left: 2px; text-transform: uppercase;">
+                                                                <?= e($order['payment_method']) ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+
+                                                <!-- Status (Interactive Dropdown) -->
+                                                <td style="text-align: center;">
                                                     <?php 
-                                                        $status_class = 'info';
-                                                        if ($order['status'] === 'confirmed') $status_class = 'success';
-                                                        if ($order['status'] === 'cancelled') $status_class = 'danger';
+                                                        $pill_class = 'pill-status-pending';
+                                                        $status_icon = 'fa-clock-o';
+                                                        if ($st === 'confirmed') { $pill_class = 'pill-status-confirmed'; $status_icon = 'fa-check'; }
+                                                        elseif ($st === 'processing') { $pill_class = 'pill-status-processing'; $status_icon = 'fa-cube'; }
+                                                        elseif ($st === 'delivered') { $pill_class = 'pill-status-delivered'; $status_icon = 'fa-truck'; }
+                                                        elseif ($st === 'cancelled') { $pill_class = 'pill-status-cancelled'; $status_icon = 'fa-ban'; }
                                                     ?>
-                                                    <span class="label label-<?= $status_class ?>">
-                                                        <?= strtoupper(e($order['status'])) ?>
-                                                    </span>
+                                                    <div class="btn-group">
+                                                        <button type="button" class="btn btn-default btn-xs dropdown-toggle pill-status <?= $pill_class ?>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="border-width: 1px;">
+                                                            <i class="fa <?= $status_icon ?>"></i> <?= strtoupper(e($st)) ?> <i class="fa fa-caret-down" style="font-size: 9px; margin-left: 3px;"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-right" style="font-size: 12px; min-width: 130px;">
+                                                            <li><a href="#" class="btn-quick-status-change" data-id="<?= $order['id'] ?>" data-status="pending"><i class="fa fa-clock-o text-warning"></i> Pending</a></li>
+                                                            <li><a href="#" class="btn-quick-status-change" data-id="<?= $order['id'] ?>" data-status="confirmed"><i class="fa fa-check text-success"></i> Confirmed</a></li>
+                                                            <li><a href="#" class="btn-quick-status-change" data-id="<?= $order['id'] ?>" data-status="processing"><i class="fa fa-cube text-primary"></i> Processing</a></li>
+                                                            <li><a href="#" class="btn-quick-status-change" data-id="<?= $order['id'] ?>" data-status="delivered"><i class="fa fa-truck text-purple"></i> Delivered</a></li>
+                                                            <li role="separator" class="divider"></li>
+                                                            <li><a href="#" class="btn-quick-status-change text-danger" data-id="<?= $order['id'] ?>" data-status="cancelled"><i class="fa fa-ban text-danger"></i> Cancelled</a></li>
+                                                        </ul>
+                                                    </div>
                                                 </td>
-                                                <td><?= e($order['order_date']) ?></td>
-                                                <td class="text-center" style="white-space: nowrap;">
-                                                    <button class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Details">
-                                                        <i class="fa fa-eye"></i> View
-                                                    </button>
-                                                    <?php if (empty($order['consignment_id'])): ?>
+
+                                                <!-- Courier / Dispatch -->
+                                                <td>
+                                                    <?php if ($ch === 'pos'): ?>
+                                                        <span class="label" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-size: 11px; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                                            <i class="fa fa-shopping-bag"></i> In-store / Counter
+                                                        </span>
+                                                    <?php elseif (!empty($order['consignment_id'])): ?>
+                                                        <span class="label" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" title="Courier: <?= e($order['courier_provider'] ?? 'Courier') ?>">
+                                                            <i class="fa fa-truck text-primary"></i> <?= e($order['courier_provider'] ? strtoupper($order['courier_provider']) : 'Booked') ?>: <?= e($order['courier_tracking_id'] ?: 'Pending') ?>
+                                                        </span>
+                                                    <?php else: ?>
                                                         <button class="btn btn-success btn-xs open-courier-selection-btn" 
                                                                 data-order-id="<?= $order['id'] ?>" 
                                                                 data-customer-name="<?= e($order['customer_name']) ?>"
                                                                 data-customer-phone="<?= e($order['customer_phone']) ?>"
                                                                 data-customer-address="<?= e($order['customer_address'] ?? '') ?>"
                                                                 data-order-total="<?= (float) $order['total'] ?>"
+                                                                data-collectable-amount="<?= isset($order['collectable_amount']) ? (float) $order['collectable_amount'] : (float) $order['total'] ?>"
                                                                 data-order-channel="<?= e($order['channel']) ?>"
                                                                 data-order-note="<?= e($order['order_note'] ?? '') ?>"
-                                                                title="Send with Courier">
+                                                                title="Send with Courier"
+                                                                style="font-weight: 600; padding: 3px 8px; border-radius: 4px;">
                                                             <i class="fa fa-truck"></i> Send Courier
                                                         </button>
-                                                    <?php else: ?>
-                                                        <span class="label label-info mleft5" style="display: inline-block; padding: 4px 6px;"><i class="fa fa-check"></i> Booked</span>
                                                     <?php endif; ?>
+                                                </td>
+
+                                                <!-- Date & Time -->
+                                                <td>
+                                                    <?php 
+                                                        $ts = strtotime($order['created_at'] ?: $order['order_date']);
+                                                        $d_str = $ts ? date('d M Y', $ts) : '-';
+                                                        $t_str = $ts ? date('h:i A', $ts) : '';
+                                                    ?>
+                                                    <div style="font-weight: 600; color: #334155; font-size: 12px;"><?= $d_str ?></div>
+                                                    <small class="text-muted" style="font-size: 10px;"><?= $t_str ?></small>
+                                                </td>
+
+                                                <!-- Actions -->
+                                                <td class="text-center" style="white-space: nowrap;">
+                                                    <div style="display: inline-flex; gap: 4px; align-items: center;">
+                                                        <button type="button" class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Full Details" style="padding: 4px 8px; border-color: #cbd5e1;">
+                                                            <i class="fa fa-eye text-primary"></i>
+                                                        </button>
+                                                        <a href="<?= admin_url('salesos/print_invoice/' . $order['id']) ?>" target="_blank" class="btn btn-default btn-xs" title="Print A4 Invoice" style="padding: 4px 8px; border-color: #cbd5e1;">
+                                                            <i class="fa fa-print"></i>
+                                                        </a>
+                                                        <a href="<?= admin_url('salesos/print_label/' . $order['id']) ?>" target="_blank" class="btn btn-default btn-xs" title="Print 55mm Shipping Label" style="padding: 4px 8px; border-color: #cbd5e1;">
+                                                            <i class="fa fa-tag text-warning"></i>
+                                                        </a>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -166,9 +638,12 @@
                             </table>
                         </div>
 
-                        <!-- Pagination -->
-                        <div class="row mtop15">
-                            <div class="col-md-12 text-right">
+                        <!-- ── Modern Pagination & Showing Counter ── -->
+                        <div class="row mtop15" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                            <div class="col-sm-6 text-muted" style="font-size: 12px;">
+                                মোট <strong id="orders-visible-count"><?= count($orders) ?></strong> টি অর্ডার প্রদর্শিত হচ্ছে
+                            </div>
+                            <div class="col-sm-6 text-right">
                                 <?= $pagination ?>
                             </div>
                         </div>
@@ -413,6 +888,296 @@ function salesos_format_number(number, decimals) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ── Instant Search & Filter Logic ──
+    window.filterRisk = '';
+    window.filterStatusSpecial = '';
+
+    function updateBulkBar() {
+        var checkedBoxes = $('.order-chk:checked');
+        var count = checkedBoxes.length;
+        $('#bulk-selected-count').text(count);
+        if (count > 0) {
+            $('#bulk-actions-bar').slideDown(150);
+        } else {
+            $('#bulk-actions-bar').slideUp(150);
+        }
+    }
+
+    function applyOrderFilters(reloadServer) {
+        var search = $('#order-search').val().trim();
+        var channel = $('#filter-channel').val();
+        var status = $('#filter-status').val();
+        var courier = $('#filter-courier').val();
+        var date_range = $('#filter-date').val();
+
+        if (reloadServer) {
+            var params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (channel) params.set('channel', channel);
+            if (status) params.set('status', status);
+            if (courier) params.set('courier_status', courier);
+            if (date_range) params.set('date_range', date_range);
+            window.location.href = admin_url + 'salesos/orders' + (params.toString() ? '?' + params.toString() : '');
+            return;
+        }
+
+        var q = search.toLowerCase();
+        var ch = channel ? channel.toLowerCase() : '';
+        var st = status ? status.toLowerCase() : '';
+        var cr = courier ? courier.toLowerCase() : '';
+        var rk = window.filterRisk || '';
+        var specialSt = window.filterStatusSpecial || '';
+
+        var visibleCount = 0;
+        $('.order-table-row').each(function() {
+            var row = $(this);
+            var rowSearch = (row.data('search-text') || '').toString().toLowerCase();
+            var rowCh = (row.data('channel') || '').toString().toLowerCase();
+            var rowSt = (row.data('status') || '').toString().toLowerCase();
+            var rowCr = (row.data('courier') || '').toString().toLowerCase();
+            var rowRk = (row.data('risk') || '').toString().toLowerCase();
+
+            var matchSearch = !q || rowSearch.indexOf(q) !== -1;
+            var matchCh = !ch || (ch === 'woo' ? (rowCh === 'woo' || rowCh === 'woocommerce') : (rowCh === ch));
+            var matchSt = true;
+            if (specialSt === 'ready') {
+                matchSt = (rowSt === 'confirmed' || rowSt === 'processing');
+            } else if (st) {
+                matchSt = (rowSt === st);
+            }
+            var matchCr = !cr || rowCr === cr;
+            var matchRk = !rk || rowRk === rk;
+
+            if (matchSearch && matchCh && matchSt && matchCr && matchRk) {
+                row.show();
+                visibleCount++;
+            } else {
+                row.hide();
+            }
+        });
+
+        $('#orders-visible-count').text(visibleCount);
+        if (visibleCount === 0) {
+            if ($('#no-results-client-row').length === 0) {
+                $('#orders-table-body').append('<tr id="no-results-client-row"><td colspan="10" class="text-center text-muted" style="padding: 25px;"><i class="fa fa-search fa-2x" style="color: #cbd5e1; display: block; margin-bottom: 8px;"></i>নির্দিষ্ট ফিল্টারে কোনো অর্ডার পাওয়া যায়নি।</td></tr>');
+            }
+        } else {
+            $('#no-results-client-row').remove();
+        }
+
+        // Reset check-all state
+        $('#select-all-orders').prop('checked', false);
+        updateBulkBar();
+    }
+
+    // Bind Filter inputs
+    $('#order-search').on('input keyup', function(e) {
+        if (e.which === 13) {
+            applyOrderFilters(true); // Enter triggers full DB search
+        } else {
+            applyOrderFilters(false);
+        }
+    });
+
+    $('#filter-channel').on('change', function() {
+        applyOrderFilters(false);
+    });
+
+    $('#filter-status').on('change', function() {
+        window.filterStatusSpecial = '';
+        $('.kpi-metric-card').removeClass('active-kpi');
+        applyOrderFilters(false);
+    });
+
+    $('#filter-courier').on('change', function() {
+        $('.kpi-metric-card').removeClass('active-kpi');
+        applyOrderFilters(false);
+    });
+
+    $('#filter-date').on('change', function() {
+        applyOrderFilters(true); // Date requires backend query
+    });
+
+    $('#btn-reset-filters').on('click', function() {
+        window.location.href = admin_url + 'salesos/orders';
+    });
+
+    // KPI Metric Cards click handling
+    $('#kpi-card-all').on('click', function() {
+        $('.kpi-metric-card').removeClass('active-kpi');
+        $(this).addClass('active-kpi');
+        $('#order-search').val('');
+        $('#filter-channel').val('');
+        $('#filter-status').val('');
+        $('#filter-courier').val('');
+        window.filterRisk = '';
+        window.filterStatusSpecial = '';
+        applyOrderFilters(false);
+    });
+
+    $('#kpi-card-pending').on('click', function() {
+        $('.kpi-metric-card').removeClass('active-kpi');
+        $(this).addClass('active-kpi');
+        $('#filter-status').val('pending');
+        window.filterRisk = '';
+        window.filterStatusSpecial = '';
+        applyOrderFilters(false);
+    });
+
+    $('#kpi-card-ready').on('click', function() {
+        $('.kpi-metric-card').removeClass('active-kpi');
+        $(this).addClass('active-kpi');
+        $('#filter-status').val('');
+        window.filterRisk = '';
+        window.filterStatusSpecial = 'ready';
+        applyOrderFilters(false);
+    });
+
+    $('#kpi-card-courier').on('click', function() {
+        $('.kpi-metric-card').removeClass('active-kpi');
+        $(this).addClass('active-kpi');
+        $('#filter-courier').val('booked');
+        window.filterRisk = '';
+        window.filterStatusSpecial = '';
+        applyOrderFilters(false);
+    });
+
+    $('#kpi-card-risk').on('click', function() {
+        if (window.filterRisk === 'high') {
+            window.filterRisk = '';
+            $(this).removeClass('active-kpi');
+        } else {
+            $('.kpi-metric-card').removeClass('active-kpi');
+            $(this).addClass('active-kpi');
+            window.filterRisk = 'high';
+        }
+        applyOrderFilters(false);
+    });
+
+    // ── Checkbox Multi-Select & Bulk Actions ──
+    $('#select-all-orders').on('change', function() {
+        var isChecked = $(this).is(':checked');
+        $('.order-table-row:visible .order-chk').prop('checked', isChecked);
+        updateBulkBar();
+    });
+
+    $(document).on('change', '.order-chk', function() {
+        updateBulkBar();
+        var totalVisible = $('.order-table-row:visible .order-chk').length;
+        var totalChecked = $('.order-table-row:visible .order-chk:checked').length;
+        $('#select-all-orders').prop('checked', totalVisible > 0 && totalVisible === totalChecked);
+    });
+
+    $('.btn-bulk-action').on('click', function() {
+        var action = $(this).data('action');
+        var orderIds = [];
+        $('.order-chk:checked').each(function() {
+            orderIds.push($(this).val());
+        });
+
+        if (orderIds.length === 0) {
+            alert_float('warning', 'কোনো অর্ডার সিলেক্ট করা হয়নি!');
+            return;
+        }
+
+        var actionLabels = {
+            'confirmed': 'Mark as Confirmed',
+            'processing': 'Mark as Processing',
+            'cancelled': 'Cancel Orders'
+        };
+        var lbl = actionLabels[action] || action;
+
+        if (!confirm('আপনি কি নিশ্চিত যে নির্বাচিত ' + orderIds.length + ' টি অর্ডার ' + lbl + ' করতে চান?')) {
+            return;
+        }
+
+        var postData = {
+            action: action,
+            order_ids: orderIds
+        };
+        if (typeof csrfData !== 'undefined') {
+            postData[csrfData.token_name] = csrfData.hash;
+        }
+
+        var btn = $(this);
+        var origHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+        $.ajax({
+            url: admin_url + 'salesos/bulk_action_ajax',
+            type: 'POST',
+            data: postData,
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    alert_float('success', res.message || 'Orders updated successfully!');
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    alert_float('danger', res.error || 'Failed to update orders.');
+                    btn.prop('disabled', false).html(origHtml);
+                }
+            },
+            error: function() {
+                alert_float('danger', 'Network error while executing bulk action.');
+                btn.prop('disabled', false).html(origHtml);
+            }
+        });
+    });
+
+    // ── Quick Status Dropdown Change ──
+    $(document).on('click', '.btn-quick-status-change', function(e) {
+        e.preventDefault();
+        var orderId = $(this).data('id');
+        var newStatus = $(this).data('status');
+        if (!orderId || !newStatus) return;
+
+        var postData = {
+            order_id: orderId,
+            status: newStatus
+        };
+        if (typeof csrfData !== 'undefined') {
+            postData[csrfData.token_name] = csrfData.hash;
+        }
+
+        var row = $('#order-row-' + orderId);
+        var statusBtn = row.find('.pill-status');
+        var origBtnHtml = statusBtn.html();
+        statusBtn.html('<i class="fa fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: admin_url + 'salesos/update_order_status_ajax',
+            type: 'POST',
+            data: postData,
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    alert_float('success', res.message || 'Order status updated!');
+                    row.attr('data-status', newStatus);
+                    row.data('status', newStatus);
+
+                    statusBtn.removeClass('pill-status-pending pill-status-confirmed pill-status-processing pill-status-delivered pill-status-cancelled');
+                    statusBtn.addClass('pill-status-' + newStatus);
+
+                    var icon = 'fa-clock-o';
+                    if (newStatus === 'confirmed') icon = 'fa-check';
+                    else if (newStatus === 'processing') icon = 'fa-cube';
+                    else if (newStatus === 'delivered') icon = 'fa-truck';
+                    else if (newStatus === 'cancelled') icon = 'fa-ban';
+
+                    statusBtn.html('<i class="fa ' + icon + '"></i> ' + newStatus.toUpperCase() + ' <i class="fa fa-caret-down" style="font-size: 9px; margin-left: 3px;"></i>');
+                } else {
+                    alert_float('danger', res.error || 'Failed to update order status.');
+                    statusBtn.html(origBtnHtml);
+                }
+            },
+            error: function() {
+                alert_float('danger', 'Network error while updating status.');
+                statusBtn.html(origBtnHtml);
+            }
+        });
+    });
     $('.view-order-details-btn').on('click', function() {
         var orderId = $(this).data('id');
         
@@ -524,7 +1289,10 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#booking-notes').val(orderNote || '');
 
         // COD Amount defaults
-        if (channel === 'pos') {
+        var collectableAmount = $(this).data('collectable-amount');
+        if (collectableAmount !== undefined && collectableAmount !== '') {
+            $('#booking-cod-amount').val(salesos_format_number(collectableAmount, 2));
+        } else if (channel === 'pos') {
             $('#booking-cod-amount').val('0.00');
         } else {
             $('#booking-cod-amount').val(salesos_format_number(orderTotal, 2));
@@ -944,7 +1712,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <a href="#" class="select-courier-account-card btn-block" 
                                    data-account-id="<?= $acc['id'] ?>"
                                    data-provider="<?= e($acc['provider']) ?>"
-                                   data-account-name="<?= e($acc['name']) ?>">
+                                   data-account-name="<?= e($acc['label'] ?? $acc['name'] ?? 'Courier Account') ?>">
                                     <div class="pull-left" style="font-size: 24px; margin-right: 15px; margin-top: 2px;">
                                         <?php if ($acc['provider'] === 'steadfast'): ?>
                                             <span class="text-danger"><i class="fa fa-paper-plane"></i></span>
@@ -958,7 +1726,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </span>
                                     </div>
                                     <div>
-                                        <h4 class="bold no-margin" style="color: #1e293b; font-size: 16px;"><?= e($acc['name']) ?></h4>
+                                        <h4 class="bold no-margin" style="color: #1e293b; font-size: 16px;"><?= e($acc['label'] ?? $acc['name'] ?? 'Courier Account') ?></h4>
                                         <small class="text-muted">Click to select and load booking form</small>
                                     </div>
                                     <div class="clearfix"></div>

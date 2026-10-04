@@ -76,6 +76,14 @@ if (!$CI->db->table_exists($db_prefix . 'inventory_stock')) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
 
+// What a unit costs us, kept as a weighted average of everything received.
+// Without it nothing in the product can answer what a sale actually earned —
+// only what it sold for, which is the wrong number for deciding what to restock.
+if (!$CI->db->field_exists('cost_price', $db_prefix . 'inventory_products')) {
+    $CI->db->query("ALTER TABLE `{$db_prefix}inventory_products`
+        ADD COLUMN `cost_price` DECIMAL(15,2) DEFAULT NULL AFTER `reorder_level`");
+}
+
 // 5. Stock ledger table (append-only)
 if (!$CI->db->table_exists($db_prefix . 'inventory_stock_ledger')) {
     $CI->db->query("CREATE TABLE `{$db_prefix}inventory_stock_ledger` (
@@ -97,6 +105,42 @@ if (!$CI->db->table_exists($db_prefix . 'inventory_stock_ledger')) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 }
 
-// 6. Settings. Overselling defaults to OFF — a sale may not take stock below
+// 6. Smart Inventory & Variations Schema
+if (!$CI->db->field_exists('product_type', $db_prefix . 'inventory_products')) {
+    $CI->db->query("ALTER TABLE `{$db_prefix}inventory_products`
+        ADD COLUMN `product_type` VARCHAR(20) NOT NULL DEFAULT 'simple' AFTER `id`,
+        ADD COLUMN `parent_id` INT(11) DEFAULT NULL AFTER `product_type`,
+        ADD COLUMN `barcode` VARCHAR(100) DEFAULT NULL AFTER `sku`,
+        ADD COLUMN `uom` VARCHAR(30) DEFAULT 'pc' AFTER `name`,
+        ADD COLUMN `attributes_json` TEXT DEFAULT NULL AFTER `category_id`,
+        ADD COLUMN `industry_data_json` TEXT DEFAULT NULL AFTER `attributes_json`,
+        ADD COLUMN `external_platform` VARCHAR(30) DEFAULT NULL AFTER `is_active`,
+        ADD COLUMN `external_id` BIGINT(20) DEFAULT NULL AFTER `external_platform`,
+        ADD COLUMN `external_parent_id` BIGINT(20) DEFAULT NULL AFTER `external_id`,
+        ADD COLUMN `sync_to_wc` TINYINT(1) NOT NULL DEFAULT 1 AFTER `external_id`,
+        ADD COLUMN `last_synced_at` DATETIME DEFAULT NULL AFTER `sync_to_wc`,
+        ADD INDEX `idx_parent_id` (`parent_id`),
+        ADD INDEX `idx_barcode` (`barcode`),
+        ADD INDEX `idx_external` (`external_platform`, `external_id`);");
+}
+
+if (!$CI->db->table_exists($db_prefix . 'inventory_imei_serials')) {
+    $CI->db->query("CREATE TABLE `{$db_prefix}inventory_imei_serials` (
+      `id` INT(11) NOT NULL AUTO_INCREMENT,
+      `product_id` INT(11) NOT NULL,
+      `serial_number` VARCHAR(100) NOT NULL,
+      `status` ENUM('in_stock', 'sold', 'returned', 'defective') NOT NULL DEFAULT 'in_stock',
+      `purchase_order_id` INT(11) DEFAULT NULL,
+      `sales_order_id` INT(11) DEFAULT NULL,
+      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uniq_serial` (`serial_number`),
+      KEY `idx_prod_status` (`product_id`, `status`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+}
+
+// 7. Settings. Overselling defaults to OFF — a sale may not take stock below
 // zero unless the operator deliberately turns it on (the backorder case).
 add_option('inventory_allow_oversell', '0');
+add_option('inventory_industry_mode', 'gadgets');
+

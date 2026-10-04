@@ -152,6 +152,53 @@ class Ami_service
         return ['success' => false, 'error' => $resp['Message'] ?? 'Originate failed'];
     }
 
+    /**
+     * Outbound call directly to a customer entering an IVR dialplan context.
+     *
+     * @param string $number Customer phone number (11 digits, e.g. 01XXXXXXXXX)
+     * @param string $context Asterisk dialplan context (e.g. 'ivr-order-confirm')
+     * @param array  $vars Channel variables (e.g. ['ORDER_ID' => 123, 'CUSTOMER_PHONE' => '01...'])
+     * @param string $caller_id Caller ID presented to customer
+     * @return array{success: bool, action_id?: string, error?: string}
+     */
+    public function originate_ivr(string $number, string $context, array $vars = [], string $caller_id = '09638881188'): array
+    {
+        if (!$this->connect()) {
+            return ['success' => false, 'error' => $this->last_error];
+        }
+
+        $default_vars = ['CDR(accountcode)' => 'ivr-outbound'];
+        $all_vars     = array_merge($default_vars, $vars);
+        $var_str      = implode(',', array_map(fn ($k, $v) => "$k=$v", array_keys($all_vars), $all_vars));
+
+        $channel = preg_match('/^10[1-9]|11[01]$/', $number)
+            ? "PJSIP/{$number}"
+            : "PJSIP/{$number}@trunk_ecare";
+
+        $action_id = uniqid('ivr-');
+        $this->send_action([
+            'Action'   => 'Originate',
+            'Channel'  => $channel,
+            'Context'  => $context,
+            'Exten'    => 's',
+            'Priority' => '1',
+            'CallerID' => $caller_id,
+            'Timeout'  => '45000',
+            'Variable' => $var_str,
+            'Async'    => 'true',
+            'ActionID' => $action_id,
+        ]);
+
+        $resp = $this->read_response(true);
+        $this->disconnect();
+
+        if (isset($resp['Response']) && $resp['Response'] === 'Success') {
+            return ['success' => true, 'action_id' => $action_id];
+        }
+
+        return ['success' => false, 'error' => $resp['Message'] ?? 'IVR Originate failed'];
+    }
+
     public function hangup(string $channel): bool
     {
         if (!$this->connect()) {
@@ -204,6 +251,80 @@ class Ami_service
         $this->disconnect();
 
         return ['success' => true, 'output' => $output, 'error' => null];
+    }
+
+    /**
+     * Discover live extensions from Asterisk PBX via 'pjsip show endpoints'.
+     * Filters out non-numeric endpoints (e.g. trunks) and parses status.
+     *
+     * @return array<int, array{extension: string, status: string, is_online: bool, contact: string}>
+     */
+    public function get_discovered_extensions(): array
+    {
+        $res = $this->run_command('pjsip show endpoints');
+        if (!$res['success'] || empty($res['output'])) {
+            return [];
+        }
+
+        $endpoints = [];
+        $lines = explode("\n", $res['output']);
+        $current_ext = null;
+        $current_state = '';
+        $current_contact = '';
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (preg_match('/^Endpoint:\s+([^\s\/]+)/', $line, $ep_match)) {
+                // Flush previous endpoint if pending
+                if ($current_ext !== null) {
+                    $is_unavail = (stripos($current_state, 'Unavailable') !== false);
+                    $is_online  = !$is_unavail && (stripos($current_state, 'Not in use') !== false || stripos($current_state, 'Available') !== false || stripos($current_state, 'In use') !== false);
+                    $endpoints[$current_ext] = [
+                        'extension' => $current_ext,
+                        'status'    => $is_unavail ? 'Unavailable' : ($is_online ? 'Available' : $current_state),
+                        'is_online' => $is_online,
+                        'contact'   => $current_contact,
+                    ];
+                }
+
+                $raw_name = $ep_match[1];
+                if (ctype_digit($raw_name)) {
+                    $current_ext     = $raw_name;
+                    $current_state   = '';
+                    $current_contact = '';
+                    if (preg_match('/^Endpoint:\s+[0-9]+\/[0-9]+\s+([A-Za-z ]+)/', $line, $sm)) {
+                        $current_state = trim($sm[1]);
+                    }
+                } else {
+                    // Non-numeric endpoint (e.g. trunk_ecare, trunk_munzu)
+                    $current_ext     = null;
+                    $current_state   = '';
+                    $current_contact = '';
+                }
+                continue;
+            }
+
+            if ($current_ext !== null && preg_match('/Contact:\s+([^\s]+)\s+([^\s]+)\s+([A-Za-z]+)/', $line, $cm)) {
+                $current_contact = $cm[1];
+                if (stripos($cm[3], 'Avail') !== false) {
+                    $current_state = 'Available';
+                }
+            }
+        }
+
+        if ($current_ext !== null) {
+            $is_unavail = (stripos($current_state, 'Unavailable') !== false);
+            $is_online  = !$is_unavail && (stripos($current_state, 'Not in use') !== false || stripos($current_state, 'Available') !== false || stripos($current_state, 'In use') !== false);
+            $endpoints[$current_ext] = [
+                'extension' => $current_ext,
+                'status'    => $is_unavail ? 'Unavailable' : ($is_online ? 'Available' : $current_state),
+                'is_online' => $is_online,
+                'contact'   => $current_contact,
+            ];
+        }
+
+        ksort($endpoints, SORT_NATURAL);
+        return array_values($endpoints);
     }
 
     /**

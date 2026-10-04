@@ -7,9 +7,13 @@ class Returns extends AdminController
     public function __construct()
     {
         parent::__construct();
-        salesos_require_ecommerce();
+        if (function_exists('salesos_require_ecommerce')) {
+            salesos_require_ecommerce();
+        }
         $this->load->model('returns_model');
-        $this->load->model('salesos/salesos_model');
+        if ($this->app_modules->is_active('salesos')) {
+            $this->load->model('salesos/salesos_model');
+        }
     }
 
     /**
@@ -78,7 +82,7 @@ class Returns extends AdminController
         }
 
         // Recent eligible orders for the picker, capped for lookup efficiency
-        $data['orders'] = $this->salesos_model->list_recent_orders(['confirmed', 'paid'], 100);
+        $data['orders'] = isset($this->salesos_model) ? $this->salesos_model->list_recent_orders(['confirmed', 'paid'], 100) : [];
 
         $data['title'] = 'Create Return Order';
         $this->load->view('returns/create', $data);
@@ -91,6 +95,11 @@ class Returns extends AdminController
     {
         if (!staff_can('create', 'returns')) {
             echo json_encode(['error' => 'Permission Denied']);
+            return;
+        }
+
+        if (!isset($this->salesos_model)) {
+            echo json_encode([]);
             return;
         }
 

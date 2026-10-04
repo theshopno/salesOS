@@ -7,7 +7,9 @@ class Purchases extends AdminController
     public function __construct()
     {
         parent::__construct();
-        salesos_require_ecommerce();
+        if (function_exists('salesos_require_ecommerce')) {
+            salesos_require_ecommerce();
+        }
         $this->load->model('purchases_model');
         if (!staff_can('view', 'purchases')) {
             access_denied('Purchases Management');
@@ -134,8 +136,11 @@ class Purchases extends AdminController
         $data['suppliers'] = $this->purchases_model->get_suppliers();
         
         // Load SKU products from inventory
-        $this->load->model('inventory/inventory_model');
-        $data['products'] = $this->inventory_model->get_products();
+        $data['products'] = [];
+        if ($this->app_modules->is_active('inventory')) {
+            $this->load->model('inventory/inventory_model');
+            $data['products'] = $this->inventory_model->get_products();
+        }
 
         $this->load->view('purchases/purchase_orders', $data);
     }

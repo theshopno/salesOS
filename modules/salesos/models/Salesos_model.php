@@ -68,6 +68,10 @@ class Salesos_model extends App_Model
                 'sku'        => $item['sku'] ?? null,
                 'qty'        => $item['qty'] ?? 1.00,
                 'unit_price' => $item['unit_price'] ?? 0.00,
+                // Captured now, never recalculated: reading today's cost back for
+                // an old order would rewrite last month's margin every time a
+                // supplier changed their price.
+                'unit_cost'  => $this->current_cost_price($item['product_id'] ?? null),
             ];
             $this->db->insert(db_prefix() . 'salesos_order_items', $item_data);
         }
@@ -77,6 +81,18 @@ class Salesos_model extends App_Model
         if ($this->db->trans_status() === false) {
             log_activity('Salesos import_order transaction failed for channel ' . $channel . ' ref ' . ($channel_ref_id ?? 'null'));
             return 0;
+        }
+
+        // Auto-convert lead to client upon order creation
+        if (!empty($order_data['lead_id'])) {
+            $converted_client_id = $this->convert_lead_to_customer((int) $order_data['lead_id'], [
+                'company' => $customer_data['name'] ?? '',
+                'address' => $customer_data['address'] ?? '',
+                'city'    => $customer_data['city'] ?? '',
+            ]);
+            if ($converted_client_id > 0) {
+                $this->db->where('id', $order_id)->update(db_prefix() . 'salesos_orders', ['client_id' => $converted_client_id]);
+            }
         }
 
         // 4. Log event and trigger hooks — only reached on a committed transaction
@@ -149,6 +165,119 @@ class Salesos_model extends App_Model
         $new_lead_id = $this->leads_model->add($lead_data);
 
         return ['client_id' => null, 'lead_id' => $new_lead_id ?: null];
+    }
+
+    /**
+     * Seamlessly convert a Lead to Customer (tblclients + tblcontacts).
+     * Updates tblleads status to Customer (1) and links orders.
+     *
+     * @param int $lead_id
+     * @param array $extra_data
+     * @return int New or existing Client ID
+     */
+    public function convert_lead_to_customer(int $lead_id, array $extra_data = []): int
+    {
+        $this->db->where('id', $lead_id);
+        $lead = $this->db->get(db_prefix() . 'leads')->row();
+
+        if (!$lead) {
+            return 0;
+        }
+
+        // Already converted?
+        if (!empty($lead->client_id) && $lead->client_id > 0) {
+            return (int) $lead->client_id;
+        }
+
+        // Check if an existing client matches by phone number
+        $clean_phone = preg_replace('/[^0-9]/', '', $lead->phonenumber);
+        $phone_suffix = substr($clean_phone, -10);
+
+        if (!empty($phone_suffix)) {
+            $existing_client = $this->db->query(
+                "SELECT c.userid FROM " . db_prefix() . "clients c
+                 LEFT JOIN " . db_prefix() . "contacts con ON con.userid = c.userid
+                 WHERE c.phonenumber LIKE ? OR con.phonenumber LIKE ? LIMIT 1",
+                ['%' . $phone_suffix, '%' . $phone_suffix]
+            )->row();
+
+            if ($existing_client) {
+                $client_id = (int) $existing_client->userid;
+                $this->db->where('id', $lead_id)->update(db_prefix() . 'leads', [
+                    'status'         => 1, // Customer
+                    'client_id'      => $client_id,
+                    'date_converted' => date('Y-m-d H:i:s'),
+                ]);
+                $this->db->where('lead_id', $lead_id)->update(db_prefix() . 'salesos_orders', [
+                    'client_id' => $client_id,
+                ]);
+                return $client_id;
+            }
+        }
+
+        // Create new client record
+        $company_name = trim($extra_data['company'] ?? ($lead->company ?: $lead->name));
+        if (empty($company_name) || $company_name === 'WhatsApp Lead') {
+            $company_name = ($lead->name && $lead->name !== 'WhatsApp Lead') 
+                ? $lead->name 
+                : 'Customer - ' . ($lead->phonenumber ?: $lead_id);
+        }
+
+        $client_data = [
+            'company'      => $company_name,
+            'phonenumber'  => $lead->phonenumber,
+            'address'      => $extra_data['address'] ?? ($lead->address ?: ''),
+            'city'         => $extra_data['city'] ?? ($lead->city ?: ''),
+            'state'        => $extra_data['state'] ?? ($lead->state ?: ''),
+            'zip'          => $extra_data['zip'] ?? ($lead->zip ?: ''),
+            'country'      => (int) ($lead->country ?: 18), // 18 = Bangladesh
+            'datecreated'  => date('Y-m-d H:i:s'),
+            'active'       => 1,
+            'leadid'       => $lead_id,
+        ];
+
+        $this->db->insert(db_prefix() . 'clients', $client_data);
+        $client_id = $this->db->insert_id();
+
+        if (!$client_id) {
+            return 0;
+        }
+
+        // Create primary contact
+        $contact_firstname = ($lead->name && $lead->name !== 'WhatsApp Lead') 
+            ? $lead->name 
+            : $company_name;
+
+        $this->db->insert(db_prefix() . 'contacts', [
+            'userid'      => $client_id,
+            'is_primary'  => 1,
+            'firstname'   => $contact_firstname,
+            'lastname'    => '',
+            'email'       => $lead->email ?: '',
+            'phonenumber' => $lead->phonenumber,
+            'title'       => $lead->title ?: '',
+            'datecreated' => date('Y-m-d H:i:s'),
+            'active'      => 1,
+        ]);
+
+        // Update lead status to Customer (status = 1)
+        $this->db->where('id', $lead_id)->update(db_prefix() . 'leads', [
+            'status'         => 1,
+            'client_id'      => $client_id,
+            'date_converted' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Update all existing salesos orders for this lead
+        $this->db->where('lead_id', $lead_id)->update(db_prefix() . 'salesos_orders', [
+            'client_id' => $client_id,
+        ]);
+
+        $this->load->model('leads_model');
+        $this->leads_model->log_lead_activity($lead_id, 'Lead converted to customer automatically on purchase', true);
+
+        hooks()->do_action('lead_converted_to_customer', ['lead_id' => $lead_id, 'customer_id' => $client_id]);
+
+        return $client_id;
     }
 
     /**
@@ -227,6 +356,97 @@ class Salesos_model extends App_Model
             'entity_id'   => $entity_id,
             'payload'     => json_encode($payload),
         ]);
+    }
+
+    // ── Margin ────────────────────────────────────────────────────────────────
+
+    /** What a product costs us right now, or null if we have never paid for it. */
+    private function current_cost_price($product_id): ?float
+    {
+        if (empty($product_id) || !$this->db->table_exists(db_prefix() . 'inventory_products')) {
+            return null;
+        }
+
+        $product = $this->db->select('cost_price')->where('id', (int) $product_id)
+            ->get(db_prefix() . 'inventory_products')->row();
+
+        return ($product && $product->cost_price !== null) ? (float) $product->cost_price : null;
+    }
+
+    /**
+     * Revenue, cost and profit over a date range, from the cost captured on each
+     * line at the time it sold.
+     *
+     * Lines with no cost recorded are counted separately rather than treated as
+     * free: a margin that silently includes them reads far better than the
+     * business actually did, which is the opposite of useful.
+     *
+     * @return array{revenue: float, cost: float, profit: float, margin: float, lines_without_cost: int}
+     */
+    public function get_margin_summary(string $from, string $to, array $statuses = ['confirmed', 'delivered']): array
+    {
+        $prefix = db_prefix();
+
+        if (!$this->db->field_exists('unit_cost', $prefix . 'salesos_order_items')) {
+            return ['revenue' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'margin' => 0.0, 'lines_without_cost' => 0];
+        }
+
+        $row = $this->db->query(
+            "SELECT
+                COALESCE(SUM(i.qty * i.unit_price), 0) AS revenue,
+                COALESCE(SUM(CASE WHEN i.unit_cost IS NOT NULL THEN i.qty * i.unit_cost END), 0) AS cost,
+                COALESCE(SUM(CASE WHEN i.unit_cost IS NOT NULL THEN i.qty * i.unit_price END), 0) AS costed_revenue,
+                SUM(CASE WHEN i.unit_cost IS NULL THEN 1 ELSE 0 END) AS lines_without_cost
+             FROM {$prefix}salesos_order_items i
+             JOIN {$prefix}salesos_orders o ON o.id = i.order_id
+             WHERE o.status IN ('" . implode("','", array_map('addslashes', $statuses)) . "')
+               AND o.order_date BETWEEN ? AND ?",
+            [$from . ' 00:00:00', $to . ' 23:59:59']
+        )->row();
+
+        $revenue = (float) $row->revenue;
+        $cost    = (float) $row->cost;
+        // Margin is measured only over the lines we actually know the cost of.
+        $costed  = (float) $row->costed_revenue;
+        $profit  = $costed - $cost;
+
+        return [
+            'revenue'            => $revenue,
+            'cost'               => $cost,
+            'profit'             => $profit,
+            'margin'             => $costed > 0 ? round($profit / $costed * 100, 1) : 0.0,
+            'lines_without_cost' => (int) $row->lines_without_cost,
+        ];
+    }
+
+    /**
+     * Which products made the most money over a range — the answer to "what
+     * should I order more of".
+     */
+    public function get_product_margins(string $from, string $to, int $limit = 10): array
+    {
+        $prefix = db_prefix();
+
+        if (!$this->db->field_exists('unit_cost', $prefix . 'salesos_order_items')) {
+            return [];
+        }
+
+        return $this->db->query(
+            "SELECT
+                i.product_id, i.name, i.sku,
+                SUM(i.qty) AS qty_sold,
+                SUM(i.qty * i.unit_price) AS revenue,
+                SUM(CASE WHEN i.unit_cost IS NOT NULL THEN i.qty * i.unit_cost END) AS cost,
+                SUM(CASE WHEN i.unit_cost IS NULL THEN 1 ELSE 0 END) AS lines_without_cost
+             FROM {$prefix}salesos_order_items i
+             JOIN {$prefix}salesos_orders o ON o.id = i.order_id
+             WHERE o.status IN ('confirmed','delivered')
+               AND o.order_date BETWEEN ? AND ?
+             GROUP BY i.product_id, i.name, i.sku
+             ORDER BY revenue DESC
+             LIMIT ?",
+            [$from . ' 00:00:00', $to . ' 23:59:59', $limit]
+        )->result_array();
     }
 
     // ── Channel sites ─────────────────────────────────────────────────────────
@@ -322,9 +542,9 @@ class Salesos_model extends App_Model
     {
         $prefix = db_prefix();
 
-        $sql = "SELECT o.id, o.channel, o.channel_ref_id, o.channel_status, o.total, o.currency,
+        $sql = "SELECT o.id, o.channel, o.channel_ref_id, o.status AS channel_status, o.total, o.currency,
                        o.payment_method, o.order_note, o.order_date, o.created_at,
-                       s.name AS site_name,
+                       COALESCE(s.name, o.channel) AS site_name,
                        COALESCE(NULLIF(TRIM(CONCAT(con.firstname,' ',con.lastname)),''), c.company, l.name, 'Guest') AS customer_name,
                        COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') AS customer_phone,
                        COALESCE(c.address, l.address, '') AS customer_address
@@ -429,7 +649,8 @@ class Salesos_model extends App_Model
      */
     public function record_confirmation(int $order_id, string $outcome, string $note = ''): bool
     {
-        if (!in_array($outcome, ['confirmed', 'cancelled'], true)) {
+        $valid_outcomes = ['confirmed', 'cancelled', 'no_answer', 'call_later'];
+        if (!in_array($outcome, $valid_outcomes, true)) {
             return false;
         }
 
@@ -443,10 +664,22 @@ class Salesos_model extends App_Model
             'note'     => $note,
         ]);
 
-        if ($note !== '') {
+        $log_note = $note;
+        if ($log_note === '') {
+            if ($outcome === 'no_answer') $log_note = 'ফোন ধরেনি / No Answer';
+            elseif ($outcome === 'call_later') $log_note = 'পরে কল দিতে বলেছেন / Call Later';
+        }
+
+        if ($log_note !== '') {
+            $prefix = ($outcome === 'confirmed') ? '[Confirmed]' : (($outcome === 'cancelled') ? '[Cancelled]' : '[Attempt]');
             $this->db->where('id', $order_id)->update(db_prefix() . 'salesos_orders', [
-                'order_note' => trim(($order['order_note'] ?? '') . "\n[call] " . $note),
+                'order_note' => trim(($order['order_note'] ?? '') . "\n" . $prefix . " (" . date('d M, h:i A') . ") " . $log_note),
             ]);
+        }
+
+        // For non-closing outcomes (no_answer, call_later), order remains pending in queue
+        if ($outcome === 'no_answer' || $outcome === 'call_later') {
+            return true;
         }
 
         return $this->set_order_status($order_id, $outcome);
@@ -521,6 +754,28 @@ class Salesos_model extends App_Model
             return null;
         }
 
+        $has_inv = $this->db->table_exists(db_prefix() . 'inventory_products');
+        if (!$has_inv) {
+            // Inventory module is not installed. Match or create core item in tblitems.
+            $existing_item = null;
+            if ($name !== '') {
+                $existing_item = $this->db->where('description', $name)->get(db_prefix() . 'items')->row();
+            }
+            if ($existing_item) {
+                return (int) $existing_item->id;
+            }
+            $final_sku  = $sku !== '' ? $sku : 'CH-' . substr(md5($name), 0, 8);
+            $final_name = $name !== '' ? $name : 'Channel product ' . $final_sku;
+            $this->db->insert(db_prefix() . 'items', [
+                'description'      => $final_name,
+                'long_description' => 'SKU: ' . $final_sku,
+                'rate'             => (float) ($product['price'] ?? 0.00),
+                'unit'             => '',
+                'group_id'         => 0,
+            ]);
+            return (int) $this->db->insert_id();
+        }
+
         $existing = null;
         if ($sku !== '') {
             $existing = $this->db->where('sku', $sku)->get(db_prefix() . 'inventory_products')->row();
@@ -571,7 +826,7 @@ class Salesos_model extends App_Model
     private function match_or_create_category(string $name): ?int
     {
         $name = trim($name);
-        if ($name === '') {
+        if ($name === '' || !$this->db->table_exists(db_prefix() . 'inventory_categories')) {
             return null;
         }
 
@@ -755,5 +1010,366 @@ class Salesos_model extends App_Model
         $this->db->where('iso2', 'BD');
         $row = $this->db->get(db_prefix() . 'countries')->row();
         return $row ? (int) $row->country_id : 0;
+    }
+
+    /**
+     * Get aggregated e-commerce metrics and feeds for Perfex CRM Dashboard Widgets.
+     * Uses static caching so multiple widgets on the same request do not repeat queries.
+     *
+     * @return array
+     */
+    public function get_dashboard_widget_data(): array
+    {
+        static $cached_data = null;
+        if ($cached_data !== null) {
+            return $cached_data;
+        }
+
+        $db_prefix = db_prefix();
+        $data = [];
+
+        // 1. Cumulative High-Level Stats
+        $this->db->where('channel !=', 'test_channel');
+        $data['total_orders'] = $this->db->count_all_results($db_prefix . 'salesos_orders');
+
+        $this->db->select_sum('total');
+        $this->db->where('status', 'confirmed');
+        $this->db->where('channel !=', 'test_channel');
+        $sales_row = $this->db->get($db_prefix . 'salesos_orders')->row();
+        $total_sales = $sales_row ? (float) $sales_row->total : 0.00;
+
+        $pos_due = 0.00;
+        if ($this->app_modules->is_active('pos') && $this->db->table_exists($db_prefix . 'pos_sales')) {
+            $pos_due_sql = "
+                SELECT COALESCE(SUM(
+                    CASE 
+                        WHEN inv.status = 1 THEN inv.total 
+                        WHEN inv.status = 3 THEN (inv.total - COALESCE((SELECT SUM(amount) FROM {$db_prefix}invoicepaymentrecords WHERE invoiceid = inv.id), 0))
+                        ELSE 0 
+                    END
+                ), 0) as pos_due
+                FROM {$db_prefix}salesos_orders o
+                JOIN {$db_prefix}pos_sales s ON s.salesos_order_id = o.id
+                JOIN {$db_prefix}invoices inv ON inv.id = s.invoice_id
+                WHERE o.status = 'confirmed' AND o.channel != 'test_channel'
+            ";
+            $pos_due_res = $this->db->query($pos_due_sql)->row();
+            $pos_due = $pos_due_res ? (float) $pos_due_res->pos_due : 0.00;
+        }
+
+        $this->db->select_sum('total');
+        $this->db->where('status', 'confirmed');
+        $this->db->where_not_in('channel', ['pos', 'pos_online', 'test_channel']);
+        $this->db->group_start();
+        $this->db->where('payment_method', 'pending_payment');
+        $this->db->or_where('payment_method', 'cod');
+        $this->db->group_end();
+        $other_due_row = $this->db->get($db_prefix . 'salesos_orders')->row();
+        $other_due = $other_due_row ? (float) $other_due_row->total : 0.00;
+
+        $data['total_due']     = $pos_due + $other_due;
+        $data['total_sales']   = $total_sales;
+        $data['total_revenue'] = max(0, $total_sales - $data['total_due']);
+
+        // 2. Today's & This Month's Performance Snapshot
+        $today_sql = "
+            SELECT 
+                COUNT(*) as today_orders,
+                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN total ELSE 0 END), 0) as today_sales
+            FROM {$db_prefix}salesos_orders
+            WHERE DATE(created_at) = CURDATE()
+              AND channel != 'test_channel'
+        ";
+        $today_stats = $this->db->query($today_sql)->row_array();
+        $data['today_orders'] = (int) ($today_stats['today_orders'] ?? 0);
+        $data['today_sales']  = (float) ($today_stats['today_sales'] ?? 0.00);
+
+        $month_sql = "
+            SELECT 
+                COUNT(*) as month_orders,
+                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN total ELSE 0 END), 0) as month_sales
+            FROM {$db_prefix}salesos_orders
+            WHERE YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())
+              AND channel != 'test_channel'
+        ";
+        $month_stats = $this->db->query($month_sql)->row_array();
+        $data['month_orders'] = (int) ($month_stats['month_orders'] ?? 0);
+        $data['month_sales']  = (float) ($month_stats['month_sales'] ?? 0.00);
+
+        // 3. Operational Order Pipeline Funnel Counts
+        $pipeline_sql = "
+            SELECT 
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_count,
+                SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing_count,
+                SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count
+            FROM {$db_prefix}salesos_orders
+            WHERE channel != 'test_channel'
+        ";
+        $pipeline = $this->db->query($pipeline_sql)->row_array();
+        $data['pending_count']    = (int) ($pipeline['pending_count'] ?? 0);
+        $data['confirmed_count']  = (int) ($pipeline['confirmed_count'] ?? 0);
+        $data['processing_count'] = (int) ($pipeline['processing_count'] ?? 0);
+        $data['ready_count']      = $data['confirmed_count'] + $data['processing_count'];
+        $data['delivered_count']  = (int) ($pipeline['delivered_count'] ?? 0);
+        $data['cancelled_count']  = (int) ($pipeline['cancelled_count'] ?? 0);
+
+        // 4. Courier Consignments & Collectable COD
+        $courier_active = $this->app_modules->is_active('courier');
+        $booked_count = 0;
+        if ($courier_active && $this->db->table_exists($db_prefix . 'courier_consignments')) {
+            $b_sql = "SELECT COUNT(DISTINCT salesos_order_id) as c FROM {$db_prefix}courier_consignments";
+            $booked_res = $this->db->query($b_sql)->row();
+            $booked_count = $booked_res ? (int) $booked_res->c : 0;
+        }
+        $data['courier_booked_count'] = $booked_count;
+
+        $pos_active = $this->app_modules->is_active('pos') && $this->db->table_exists($db_prefix . 'pos_sales');
+        if ($pos_active) {
+            $cod_sql = "
+                SELECT COALESCE(SUM(
+                    CASE 
+                        WHEN o.channel = 'pos' THEN 0.00
+                        WHEN inv.id IS NOT NULL THEN (
+                            CASE 
+                                WHEN inv.status = 1 THEN inv.total
+                                WHEN inv.status = 3 THEN GREATEST(0.00, inv.total - COALESCE((SELECT SUM(amount) FROM {$db_prefix}invoicepaymentrecords WHERE invoiceid = inv.id), 0))
+                                ELSE 0.00
+                            END
+                        )
+                        WHEN o.payment_method IN ('cod', 'pending_payment') THEN o.total
+                        ELSE 0.00
+                    END
+                ), 0) as cod_receivable
+                FROM {$db_prefix}salesos_orders o
+                LEFT JOIN {$db_prefix}pos_sales ps ON ps.salesos_order_id = o.id
+                LEFT JOIN {$db_prefix}invoices inv ON inv.id = ps.invoice_id
+                WHERE o.status IN ('confirmed', 'processing')
+                  AND o.channel != 'test_channel'
+            ";
+        } else {
+            $cod_sql = "
+                SELECT COALESCE(SUM(
+                    CASE 
+                        WHEN o.payment_method IN ('cod', 'pending_payment') THEN o.total
+                        ELSE 0.00
+                    END
+                ), 0) as cod_receivable
+                FROM {$db_prefix}salesos_orders o
+                WHERE o.status IN ('confirmed', 'processing')
+                  AND o.channel != 'test_channel'
+            ";
+        }
+        $cod_res = $this->db->query($cod_sql)->row();
+        $data['collectable_cod'] = $cod_res ? (float) $cod_res->cod_receivable : 0.00;
+
+        // 5. High Risk Orders Count
+        $high_risk_count = 0;
+        if ($this->app_modules->is_active('fraudcheck') && $this->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
+            $hr_sql = "
+                SELECT COUNT(DISTINCT o.id) as c 
+                FROM {$db_prefix}salesos_orders o
+                LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+                LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
+                LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
+                JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
+                WHERE fl.risk_level IN ('high_risk', 'red')
+            ";
+            $hr_res = $this->db->query($hr_sql)->row();
+            $high_risk_count = $hr_res ? (int) $hr_res->c : 0;
+        }
+        $data['high_risk_count'] = $high_risk_count;
+
+        // 6. Omni-Channel Breakdown
+        $ch_sql = "
+            SELECT 
+                channel,
+                COUNT(*) as order_count,
+                COALESCE(SUM(CASE WHEN status = 'confirmed' THEN total ELSE 0 END), 0) as confirmed_revenue,
+                COALESCE(SUM(total), 0) as total_value
+            FROM {$db_prefix}salesos_orders
+            WHERE channel != 'test_channel'
+            GROUP BY channel
+            ORDER BY confirmed_revenue DESC
+        ";
+        $channels_raw = $this->db->query($ch_sql)->result_array();
+        $channels = [];
+        $total_rev_sum = max(1, $total_sales);
+        foreach ($channels_raw as $ch) {
+            $ch['share_percent'] = round(((float)$ch['confirmed_revenue'] / $total_rev_sum) * 100, 1);
+            $channels[] = $ch;
+        }
+        $data['channels'] = $channels;
+
+        // 7. Last 7 Days Daily Sales Trend
+        $trend_sql = "
+            SELECT 
+                DATE(created_at) as order_date,
+                channel,
+                COUNT(*) as order_count,
+                COALESCE(SUM(total), 0) as daily_total
+            FROM {$db_prefix}salesos_orders
+            WHERE created_at >= CURDATE() - INTERVAL 6 DAY
+              AND channel != 'test_channel'
+            GROUP BY DATE(created_at), channel
+            ORDER BY order_date ASC
+        ";
+        $trend_rows = $this->db->query($trend_sql)->result_array();
+
+        $chart_days = [];
+        $chart_labels = [];
+        $pos_trend = [];
+        $woo_trend = [];
+        $manual_trend = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-$i days"));
+            $chart_days[$d] = [
+                'pos'    => 0.0,
+                'woo'    => 0.0,
+                'manual' => 0.0,
+            ];
+            $chart_labels[] = date('d M', strtotime($d));
+        }
+
+        foreach ($trend_rows as $tr) {
+            $d = $tr['order_date'];
+            $c = strtolower($tr['channel']);
+            if ($c === 'woocommerce') {
+                $c = 'woo';
+            } elseif ($c === 'pos_online') {
+                $c = 'pos';
+            }
+            if (isset($chart_days[$d])) {
+                if (isset($chart_days[$d][$c])) {
+                    $chart_days[$d][$c] += (float) $tr['daily_total'];
+                } else {
+                    $chart_days[$d]['manual'] += (float) $tr['daily_total'];
+                }
+            }
+        }
+
+        foreach ($chart_days as $day_data) {
+            $pos_trend[]    = $day_data['pos'];
+            $woo_trend[]    = $day_data['woo'];
+            $manual_trend[] = $day_data['manual'];
+        }
+
+        $data['chart_data'] = [
+            'labels' => $chart_labels,
+            'pos'    => $pos_trend,
+            'woo'    => $woo_trend,
+            'manual' => $manual_trend,
+        ];
+
+        // 8. Top Urgent Risk Orders (3 items)
+        $urgent_risk_orders = [];
+        if ($high_risk_count > 0) {
+            $urg_sql = "
+                SELECT 
+                    o.id,
+                    o.channel,
+                    o.total,
+                    o.status,
+                    o.created_at,
+                    COALESCE(NULLIF(TRIM(CONCAT(con.firstname, ' ', con.lastname)), ''), c.company, l.name, 'Customer') as customer_name,
+                    COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
+                    fl.risk_level,
+                    fl.success_ratio
+                FROM {$db_prefix}salesos_orders o
+                LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+                LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
+                LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
+                JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
+                WHERE fl.risk_level IN ('high_risk', 'red')
+                ORDER BY o.created_at DESC
+                LIMIT 3
+            ";
+            $urgent_risk_orders = $this->db->query($urg_sql)->result_array();
+        }
+        $data['urgent_risk_orders'] = $urgent_risk_orders;
+
+        // 9. Low Stock / Zero Stock Products (Top 4 items)
+        $data['low_stock_products'] = [];
+        if ($this->db->table_exists($db_prefix . 'inventory_stock')) {
+            $low_stock_sql = "
+                SELECT 
+                    i.id,
+                    i.description as name,
+                    i.rate,
+                    COALESCE(s.qty_on_hand, 0) as stock
+                FROM {$db_prefix}items i
+                LEFT JOIN {$db_prefix}inventory_stock s ON s.product_id = i.id
+                ORDER BY stock ASC, i.id ASC
+                LIMIT 4
+            ";
+            $data['low_stock_products'] = $this->db->query($low_stock_sql)->result_array();
+        }
+
+        // 10. Integration Health Statuses
+        $creds_sql = "
+            SELECT owner_module, label, is_active 
+            FROM {$db_prefix}salesos_credentials
+            WHERE is_active = 1
+        ";
+        $active_creds = $this->db->query($creds_sql)->result_array();
+        $has_woo = false;
+        $has_courier = false;
+        $has_fraud = false;
+        foreach ($active_creds as $cr) {
+            if ($cr['owner_module'] === 'wcsync') $has_woo = true;
+            if ($cr['owner_module'] === 'courier') $has_courier = true;
+            if ($cr['owner_module'] === 'fraudcheck') $has_fraud = true;
+        }
+        if (!$has_courier && $courier_active) {
+            $ca_count = (int) $this->db->count_all_results($db_prefix . 'courier_accounts');
+            if ($ca_count > 0) $has_courier = true;
+        }
+        $has_whatsapp = (get_option('ordernotifier_whatsapp_enabled') === '1');
+
+        $data['system_health'] = [
+            'woo'       => $has_woo,
+            'courier'   => $has_courier,
+            'fraud'     => $has_fraud,
+            'whatsapp'  => $has_whatsapp,
+        ];
+
+        // 11. Recent 8 Orders
+        $recent_sql = "
+            SELECT 
+                o.*,
+                COALESCE(
+                    NULLIF(TRIM(CONCAT(con.firstname, ' ', con.lastname)), ''),
+                    c.company,
+                    l.name,
+                    'Guest Customer'
+                ) as customer_name,
+                COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
+                COALESCE(c.address, l.address, '') as customer_address,
+                COALESCE(con.email, l.email, '') as customer_email,
+                cc.id as consignment_id,
+                cc.status as courier_status,
+                cc.tracking_id as courier_tracking_id,
+                ca.provider as courier_provider,
+                ca.label as courier_account_name,
+                fl.risk_level as fraud_risk_level,
+                fl.success_ratio as fraud_success_ratio,
+                (SELECT COUNT(*) FROM {$db_prefix}salesos_order_items oi WHERE oi.order_id = o.id) as item_count
+            FROM {$db_prefix}salesos_orders o
+            LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
+            LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
+            LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
+            LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id
+            LEFT JOIN {$db_prefix}courier_accounts ca ON ca.id = cc.courier_account_id
+            LEFT JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
+            WHERE o.channel != 'test_channel'
+            ORDER BY o.created_at DESC
+            LIMIT 8
+        ";
+        $data['recent_orders'] = $this->db->query($recent_sql)->result_array();
+
+        $cached_data = $data;
+        return $cached_data;
     }
 }

@@ -7,7 +7,9 @@ class Inventory extends AdminController
     public function __construct()
     {
         parent::__construct();
-        salesos_require_ecommerce();
+        if (function_exists('salesos_require_ecommerce')) {
+            salesos_require_ecommerce();
+        }
         $this->load->model('inventory_model');
         if (!staff_can('view', 'inventory')) {
             access_denied('Inventory Management');
@@ -38,12 +40,23 @@ class Inventory extends AdminController
             redirect(admin_url('inventory/products'));
         }
 
-        $data['title'] = 'Products Catalog';
-        $data['products'] = $this->inventory_model->get_products();
-        $data['categories'] = $this->inventory_model->get_categories();
-        $data['items'] = $this->db->get(db_prefix() . 'items')->result_array();
+        $data['title']         = 'Products Catalog';
+        $data['industry_mode'] = $this->inventory_model->get_industry_mode();
+        $data['products']      = $this->inventory_model->get_products();
+        $data['categories']    = $this->inventory_model->get_categories();
+        $data['items']         = $this->db->get(db_prefix() . 'items')->result_array();
 
         $this->load->view('inventory/products', $data);
+    }
+
+    public function get_variations($parent_id)
+    {
+        if (!staff_can('view', 'inventory')) {
+            ajax_access_denied();
+        }
+        $variations = $this->inventory_model->get_variations((int) $parent_id);
+        echo json_encode($variations);
+        exit;
     }
 
     public function delete_product($id)
@@ -109,20 +122,18 @@ class Inventory extends AdminController
 
     public function settings()
     {
-        if (!staff_can('edit', 'inventory')) {
-            access_denied('Inventory Settings');
-        }
-
         if ($this->input->post()) {
-            update_option('inventory_allow_oversell', $this->input->post('inventory_allow_oversell') === '1' ? '1' : '0');
-            set_alert('success', 'Inventory settings saved.');
-            redirect(admin_url('inventory/settings'));
+            if (staff_can('edit', 'inventory')) {
+                update_option('inventory_allow_oversell', $this->input->post('inventory_allow_oversell') === '1' ? '1' : '0');
+                update_option('inventory_stock_reservation_enabled', $this->input->post('inventory_stock_reservation_enabled') === '1' ? '1' : '0');
+                if ($this->input->post('inventory_industry_mode')) {
+                    $this->inventory_model->set_industry_mode($this->input->post('inventory_industry_mode'));
+                }
+                set_alert('success', 'Inventory settings saved.');
+            }
         }
 
-        $data['title']                   = 'Inventory Settings';
-        $data['inventory_allow_oversell'] = get_option('inventory_allow_oversell') === '1';
-
-        $this->load->view('inventory/settings', $data);
+        redirect(admin_url($this->app_modules->is_active('salesos') ? 'salesos/settings?tab=general' : 'inventory/products'));
     }
 
     public function adjustments()

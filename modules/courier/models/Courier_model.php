@@ -282,9 +282,9 @@ class Courier_model extends App_Model
     /**
      * Query wallet float balance from Steadfast API
      */
-    public function check_steadfast_balance($api_key, $secret_key)
+    public function check_steadfast_balance($api_key, $secret_key, $timeout = 3)
     {
-        $res = $this->execute_steadfast_request('/get_balance', 'GET', null, $api_key, $secret_key);
+        $res = $this->execute_steadfast_request('/get_balance', 'GET', null, $api_key, $secret_key, $timeout);
         if ($res && isset($res['status']) && (int)$res['status'] === 200) {
             return (float) ($res['current_balance'] ?? 0.00);
         }
@@ -562,7 +562,18 @@ class Courier_model extends App_Model
 
             return $db_id;
         } else {
-            $msg = $res['message'] ?? 'Unknown Steadfast API Error';
+            $msg = '';
+            if (!empty($res['errors']) && is_array($res['errors'])) {
+                $err_list = [];
+                foreach ($res['errors'] as $fld => $errs) {
+                    $err_list[] = is_array($errs) ? implode(', ', $errs) : $errs;
+                }
+                $msg = implode(' | ', $err_list);
+            } elseif (!empty($res['message'])) {
+                $msg = $res['message'];
+            } else {
+                $msg = 'Unknown Steadfast API Error';
+            }
             throw new Exception("Steadfast API booking failed: " . $msg);
         }
     }
@@ -582,18 +593,28 @@ class Courier_model extends App_Model
     {
         $db_prefix = db_prefix();
 
-        $this->db->select("cc.*,
-            o.channel, o.channel_ref_id, o.status AS order_status, o.total AS order_total,
-            ca.label AS account_label, ca.provider,
-            COALESCE(NULLIF(TRIM(CONCAT(con.firstname,' ',con.lastname)),''), c.company, l.name, 'Guest') AS customer_name,
-            COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') AS customer_phone,
-            COALESCE(c.address, l.address, '') AS customer_address");
-        $this->db->from($db_prefix . 'courier_consignments cc');
-        $this->db->join($db_prefix . 'salesos_orders o', 'o.id = cc.salesos_order_id', 'left');
-        $this->db->join($db_prefix . 'courier_accounts ca', 'ca.id = cc.courier_account_id', 'left');
-        $this->db->join($db_prefix . 'contacts con', 'con.userid = o.client_id AND con.is_primary = 1', 'left');
-        $this->db->join($db_prefix . 'clients c', 'c.userid = o.client_id', 'left');
-        $this->db->join($db_prefix . 'leads l', 'l.id = o.lead_id', 'left');
+        $has_salesos = $this->db->table_exists($db_prefix . 'salesos_orders');
+        if ($has_salesos) {
+            $this->db->select("cc.*,
+                o.channel, o.channel_ref_id, o.status AS order_status, o.total AS order_total,
+                ca.label AS account_label, ca.provider,
+                COALESCE(NULLIF(TRIM(CONCAT(con.firstname,' ',con.lastname)),''), c.company, l.name, 'Guest') AS customer_name,
+                COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') AS customer_phone,
+                COALESCE(c.address, l.address, '') AS customer_address");
+            $this->db->from($db_prefix . 'courier_consignments cc');
+            $this->db->join($db_prefix . 'salesos_orders o', 'o.id = cc.salesos_order_id', 'left');
+            $this->db->join($db_prefix . 'courier_accounts ca', 'ca.id = cc.courier_account_id', 'left');
+            $this->db->join($db_prefix . 'contacts con', 'con.userid = o.client_id AND con.is_primary = 1', 'left');
+            $this->db->join($db_prefix . 'clients c', 'c.userid = o.client_id', 'left');
+            $this->db->join($db_prefix . 'leads l', 'l.id = o.lead_id', 'left');
+        } else {
+            $this->db->select("cc.*,
+                '' AS channel, '' AS channel_ref_id, '' AS order_status, 0.00 AS order_total,
+                ca.label AS account_label, ca.provider,
+                'N/A' AS customer_name, '' AS customer_phone, '' AS customer_address");
+            $this->db->from($db_prefix . 'courier_consignments cc');
+            $this->db->join($db_prefix . 'courier_accounts ca', 'ca.id = cc.courier_account_id', 'left');
+        }
 
         if (!empty($filters['status'])) {
             if ($filters['status'] === 'in_transit') {
@@ -896,7 +917,7 @@ class Courier_model extends App_Model
     /**
      * Executing Steadfast API requests using cURL
      */
-    private function execute_steadfast_request($path, $method, $payload, $api_key, $secret_key)
+    private function execute_steadfast_request($path, $method, $payload, $api_key, $secret_key, $timeout = 15)
     {
         $url = 'https://portal.packzy.com/api/v1' . $path;
         $ch = curl_init($url);
@@ -910,7 +931,8 @@ class Courier_model extends App_Model
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(3, (int)$timeout));
+        curl_setopt($ch, CURLOPT_TIMEOUT, (int)$timeout);
 
         if (strtoupper($method) === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);

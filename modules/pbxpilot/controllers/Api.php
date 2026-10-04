@@ -167,4 +167,45 @@ class Api extends AdminController
         header('Cache-Control: private, max-age=86400');
         readfile($path);
     }
+
+    /**
+     * POST /admin/pbxpilot/api/trigger_ivr_order
+     * Trigger an automated IVR confirmation call for an order.
+     */
+    public function trigger_ivr_order($cli_order_id = null, $cli_phone = null)
+    {
+        if (!is_cli() && !staff_can('make', PBXPILOT_MODULE_NAME) && !is_admin()) {
+            echo json_encode(['success' => false, 'error' => 'Permission denied']);
+            return;
+        }
+
+        $order_id = (int) ($cli_order_id ?: $this->input->post('order_id'));
+        $phone    = trim((string) ($cli_phone ?: $this->input->post('phone')));
+
+        if ($order_id <= 0) {
+            echo json_encode(['success' => false, 'error' => 'Valid order_id is required']);
+            return;
+        }
+
+        $this->load->library(PBXPILOT_MODULE_NAME . '/Ivr_service');
+        $res = $this->ivr_service->trigger_order_confirmation($order_id, $phone ?: null);
+
+        echo json_encode($res);
+    }
+
+    /**
+     * GET /admin/pbxpilot/api/ivr_logs/:order_id
+     * Returns all IVR call logs for a specific order.
+     */
+    public function ivr_logs($order_id)
+    {
+        $order_id = (int) $order_id;
+        $logs = $this->db->where('order_id', $order_id)
+            ->order_by('id', 'desc')
+            ->get(db_prefix() . 'pbxpilot_ivr_logs')
+            ->result_array();
+
+        echo json_encode(['success' => true, 'logs' => $logs]);
+    }
 }
+

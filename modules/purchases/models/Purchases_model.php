@@ -7,7 +7,9 @@ class Purchases_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-        $this->load->model('inventory/inventory_model');
+        if ($this->app_modules->is_active('inventory')) {
+            $this->load->model('inventory/inventory_model');
+        }
     }
 
     // ── Suppliers CRUD ────────────────────────────────────────────────────────
@@ -154,10 +156,19 @@ class Purchases_model extends App_Model
     {
         $this->db->trans_start();
         
+        // Derived from the lines rather than trusted from the caller: this figure
+        // is what gets booked as the supplier payable, and a caller that forgot
+        // to send it would silently book a zero.
+        $items = $data['items'] ?? [];
+        $total = 0.00;
+        foreach ($items as $item) {
+            $total += (float) ($item['qty'] ?? 0) * (float) ($item['unit_cost'] ?? 0);
+        }
+
         $db_data = [
             'supplier_id' => (int) $data['supplier_id'],
             'status'      => 'draft',
-            'total'       => (float) $data['total'],
+            'total'       => $total,
             'order_date'  => !empty($data['order_date']) ? $data['order_date'] : date('Y-m-d'),
             'staff_id'    => get_staff_user_id() ?: null,
             'created_at'  => date('Y-m-d H:i:s'),
@@ -165,7 +176,6 @@ class Purchases_model extends App_Model
         $this->db->insert(db_prefix() . 'purchases_orders', $db_data);
         $po_id = $this->db->insert_id();
 
-        $items = $data['items'] ?? [];
         foreach ($items as $item) {
             $this->db->insert(db_prefix() . 'purchases_order_items', [
                 'purchase_order_id' => $po_id,
@@ -251,18 +261,29 @@ class Purchases_model extends App_Model
         ]);
 
         // 2. Adjust Stock for all items
-        $items = $this->get_purchase_order_items($po_id);
-        $wh_id = $this->inventory_model->get_default_warehouse_id();
-        foreach ($items as $item) {
-            $this->inventory_model->adjust_stock(
-                (int) $item['product_id'],
-                $wh_id,
-                (float) $item['qty'],
-                'purchase_in',
-                'purchase_order',
-                $po_id,
-                'Purchase order received'
-            );
+        if ($this->app_modules->is_active('inventory') && isset($this->inventory_model)) {
+            $items = $this->get_purchase_order_items($po_id);
+            $wh_id = $this->inventory_model->get_default_warehouse_id();
+            foreach ($items as $item) {
+                $this->inventory_model->adjust_stock(
+                    (int) $item['product_id'],
+                    $wh_id,
+                    (float) $item['qty'],
+                    'purchase_in',
+                    'purchase_order',
+                    $po_id,
+                    'Purchase order received'
+                );
+
+                // What we just paid becomes part of what the product costs us.
+                // After adjust_stock(), so the weighted average sees the new batch
+                // already in stock and can work out what was held before it.
+                $this->inventory_model->apply_received_cost(
+                    (int) $item['product_id'],
+                    (float) $item['qty'],
+                    (float) $item['unit_cost']
+                );
+            }
         }
 
         // 3. Record supplier ledger debit (representing what we owe them for this purchase)
@@ -280,7 +301,7 @@ class Purchases_model extends App_Model
         return $this->db->trans_status();
     }
 
-    public function record_supplier_payment(int $supplier_id, float $amount, string $note = null): bool
+    public function record_supplier_payment(int $supplier_id, float $amount, ?string $note = null): bool
     {
         return $this->db->insert(db_prefix() . 'purchases_supplier_ledger', [
             'supplier_id' => $supplier_id,

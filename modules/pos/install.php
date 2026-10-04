@@ -120,3 +120,25 @@ if (!$existing_reg) {
         'is_active' => 1
     ]);
 }
+
+// Bangladesh Geocode Tables & Data
+if (file_exists(__DIR__ . '/install_bd_geocode.php')) {
+    require_once __DIR__ . '/install_bd_geocode.php';
+}
+
+// Ensure geocode columns exist in tblclients
+$client_cols = ['division_id', 'district_id', 'upazila_id', 'union_id'];
+foreach ($client_cols as $col) {
+    if (!$CI->db->field_exists($col, $db_prefix . 'clients')) {
+        $CI->db->query("ALTER TABLE `{$db_prefix}clients` ADD COLUMN `{$col}` INT(11) NULL DEFAULT NULL;");
+    }
+}
+
+// Ensure geocode columns exist in tblleads
+$lead_cols = ['division_id', 'district_id', 'upazila_id', 'union_id'];
+foreach ($lead_cols as $col) {
+    if (!$CI->db->field_exists($col, $db_prefix . 'leads')) {
+        $CI->db->query("ALTER TABLE `{$db_prefix}leads` ADD COLUMN `{$col}` INT(11) NULL DEFAULT NULL;");
+    }
+}
+

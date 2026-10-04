@@ -22,6 +22,11 @@
                     </a>
                 </li>
                 <li role="presentation">
+                    <a href="#ivr_order" aria-controls="ivr_order" role="tab" data-toggle="tab">
+                        <i class="fa-solid fa-phone-volume tw-mr-1"></i> Auto IVR & অডিও প্রম্পট
+                    </a>
+                </li>
+                <li role="presentation">
                     <a href="#connection" aria-controls="connection" role="tab" data-toggle="tab">
                         <i class="fa-solid fa-server tw-mr-1"></i> <?= _l('pbxpilot_connection_tab') ?>
                     </a>
@@ -156,9 +161,138 @@
                     </div>
 
                 </div>
+                <div role="tabpanel" class="tab-pane" id="ivr_order">
+                    <p class="text-muted">স্বয়ংক্রিয় IVR কল অর্ডার কনফার্মেশন, ডায়নামিক অডিও প্রম্পট ও কলিং উইন্ডো পরিচালনা করুন।</p>
+
+                    <h4 class="tw-mb-3"><i class="fa-solid fa-phone-volume tw-mr-1 tw-text-neutral-400"></i> স্বয়ংক্রিয় IVR অর্ডার কনফার্মেশন</h4>
+
+                    <div class="checkbox checkbox-primary tw-mb-4">
+                        <input type="checkbox" name="pbxpilot_auto_ivr_enabled" id="pbxpilot_auto_ivr_enabled" <?= ($pbxpilot_auto_ivr_enabled ?? '1') == '1' ? 'checked' : '' ?>>
+                        <label for="pbxpilot_auto_ivr_enabled" class="tw-font-bold">
+                            নতুন অর্ডার প্লেস হলে সাথে সাথে স্বয়ংক্রিয় IVR কল পাঠানো সক্রিয় রাখুন
+                        </label>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="pbxpilot_ivr_caller_id">আউটবাউন্ড কলার আইডি / DID নম্বর</label>
+                            <input type="text" name="pbxpilot_ivr_caller_id" id="pbxpilot_ivr_caller_id" class="form-control" value="<?= e($pbxpilot_ivr_caller_id ?? '09638881188') ?>" placeholder="09638881188">
+                            <small class="text-muted">কাস্টমারের ফোনে এই নম্বরটি প্রদর্শিত হবে।</small>
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label for="pbxpilot_ivr_calling_start_hour">কল করার সময় শুরু (সকাল)</label>
+                            <select name="pbxpilot_ivr_calling_start_hour" id="pbxpilot_ivr_calling_start_hour" class="form-control">
+                                <?php for ($h = 6; $h <= 12; $h++): ?>
+                                    <option value="<?= $h ?>" <?= ($pbxpilot_ivr_calling_start_hour ?? '9') == $h ? 'selected' : '' ?>>
+                                        <?= sprintf('%02d:00 AM', $h) ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label for="pbxpilot_ivr_calling_end_hour">কল করার সময় শেষ (রাত)</label>
+                            <select name="pbxpilot_ivr_calling_end_hour" id="pbxpilot_ivr_calling_end_hour" class="form-control">
+                                <?php for ($h = 18; $h <= 23; $h++): ?>
+                                    <option value="<?= $h ?>" <?= ($pbxpilot_ivr_calling_end_hour ?? '22') == $h ? 'selected' : '' ?>>
+                                        <?= sprintf('%02d:00 PM (%02d:00)', $h > 12 ? $h - 12 : $h, $h) ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="pbxpilot_ivr_max_retries">কল না ধরলে সর্বোচ্চ রিট্রাই (Max Retries)</label>
+                            <select name="pbxpilot_ivr_max_retries" id="pbxpilot_ivr_max_retries" class="form-control">
+                                <option value="1" <?= ($pbxpilot_ivr_max_retries ?? '2') == '1' ? 'selected' : '' ?>>১ বার (কোনো রিট্রাই নেই)</option>
+                                <option value="2" <?= ($pbxpilot_ivr_max_retries ?? '2') == '2' ? 'selected' : '' ?>>২ বার (১ বার প্রাথমিক + ১ বার রিট্রাই)</option>
+                                <option value="3" <?= ($pbxpilot_ivr_max_retries ?? '2') == '3' ? 'selected' : '' ?>>৩ বার (১ বার প্রাথমিক + ২ বার রিট্রাই)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="pbxpilot_ivr_retry_delay_minutes">রিট্রাই করার বিরতি (Retry Delay)</label>
+                            <select name="pbxpilot_ivr_retry_delay_minutes" id="pbxpilot_ivr_retry_delay_minutes" class="form-control">
+                                <option value="15" <?= ($pbxpilot_ivr_retry_delay_minutes ?? '15') == '15' ? 'selected' : '' ?>>১৫ মিনিট পর</option>
+                                <option value="30" <?= ($pbxpilot_ivr_retry_delay_minutes ?? '15') == '30' ? 'selected' : '' ?>>৩০ মিনিট পর</option>
+                                <option value="60" <?= ($pbxpilot_ivr_retry_delay_minutes ?? '15') == '60' ? 'selected' : '' ?>>১ ঘণ্টা পর</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h4 class="tw-mb-3"><i class="fa-solid fa-music tw-mr-1 tw-text-neutral-400"></i> ইভেন্ট ভিত্তিক অডিও প্রম্পট ম্যানেজার</h4>
+                    <p class="text-muted tw-mb-4">আপনার পছন্দের MP3 বা WAV অডিও ফাইল আপলোড করুন। সিস্টেম স্বয়ংক্রিয়ভাবে Asterisk টেলিফোনি 8kHz ফরম্যাটে কনভার্ট করে PBX সার্ভারে অ্যাক্টিভ করবে।</p>
+
+                    <div class="row">
+                        <?php foreach ($prompt_slots as $slot_key => $slot): ?>
+                        <div class="col-md-12 tw-mb-4" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <h5 class="tw-font-bold tw-text-neutral-800 tw-mt-0"><?= e($slot['label']) ?></h5>
+                                    <p class="tw-text-sm text-muted"><?= e($slot['description']) ?></p>
+                                    <?php if (!empty($slot['preview_url'])): ?>
+                                        <div style="margin-top:8px;">
+                                            <audio controls style="height:34px;width:100%;">
+                                                <source src="<?= e($slot['preview_url']) ?>" type="audio/mpeg">
+                                                আপনার ব্রাউজার অডিও সাপোর্ট করে না।
+                                            </audio>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="label label-default">ডিফল্ট অডিও সেট করা</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="tw-text-sm">নতুন অডিও আপলোড করুন (MP3 / WAV)</label>
+                                    <div class="input-group">
+                                        <input type="file" id="prompt-file-<?= $slot_key ?>" class="form-control" accept=".mp3,.wav,.ogg,.m4a">
+                                        <span class="input-group-btn">
+                                            <button type="button" class="btn btn-default btn-upload-prompt" data-slot="<?= $slot_key ?>">
+                                                <i class="fa-solid fa-cloud-arrow-up"></i> আপলোড ও কনভার্ট
+                                            </button>
+                                        </span>
+                                    </div>
+                                    <div id="prompt-upload-status-<?= $slot_key ?>" class="tw-mt-1 tw-text-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <hr>
+                    <h4 class="tw-mb-3"><i class="fa-solid fa-mobile-screen tw-mr-1 tw-text-neutral-400"></i> লাইভ টেস্ট কল উইজেট</h4>
+                    <p class="text-muted">আপনার ফোনে এখনই একটি টেস্ট কল পাঠিয়ে চেক করে নিন অডিও ঠিকঠাক বাজছে কি না।</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" id="test-ivr-phone" class="form-control" placeholder="01XXXXXXXXX" value="01811699722">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-success" id="btn-test-ivr">
+                                        <i class="fa-solid fa-phone"></i> টেস্ট কল পাঠান
+                                    </button>
+                                </span>
+                            </div>
+                            <span id="test-ivr-result" class="tw-block tw-mt-2"></span>
+                        </div>
+                    </div>
+
+                </div>
                 <div role="tabpanel" class="tab-pane" id="connection">
 
                     <p class="text-muted"><?= _l('pbxpilot_connection_intro') ?></p>
+
+                    <div class="alert alert-info tw-flex tw-items-center tw-justify-between tw-mb-4" style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;">
+                        <div>
+                            <strong class="text-primary"><i class="fa-solid fa-wand-magic-sparkles tw-mr-1"></i> হোস্টেড Munzu PBX (One-Click Auto Connect)</strong>
+                            <p class="text-muted tw-mb-0 tw-text-sm" style="margin-top:2px;">পোর্টে বা ক্রেডেনশিয়াল জটিলতায় যেতে না চাইলে এক ক্লিকেই ডিফল্ট PBX কানেকশন প্রস্তুত করুন।</p>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="btn-load-preset" style="white-space:nowrap;">
+                            <i class="fa-solid fa-plug tw-mr-1"></i> Munzu PBX অটো-কানেক্ট করুন
+                        </button>
+                    </div>
+                    <span id="preset-load-result" class="tw-block tw-mb-3"></span>
+
 
                     <h4 class="tw-mb-3"><i class="fa-solid fa-plug tw-mr-1 tw-text-neutral-400"></i> <?= _l('pbxpilot_section_ami') ?></h4>
                     <div class="row">
@@ -317,6 +451,112 @@ window.addEventListener('load', function () {
         $('[data-toggle="tooltip"]').tooltip();
     }
 });
+
+// Load Preset Handler (Non-Technical Friendly)
+document.getElementById('btn-load-preset')?.addEventListener('click', function () {
+    var btn = this;
+    var res = document.getElementById('preset-load-result');
+    btn.disabled = true;
+    res.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> লোড হচ্ছে...';
+
+    fetch('<?= admin_url('pbxpilot/settings/load_preset') ?>', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: '<?= $this->security->get_csrf_token_name() ?>=<?= $this->security->get_csrf_hash() ?>',
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.success) {
+            res.innerHTML = '<span class="text-success"><i class="fa-solid fa-circle-check"></i> ' + d.message + ' (পেজটি রিলোড দিন)</span>';
+            setTimeout(function () { location.reload(); }, 1200);
+        } else {
+            res.innerHTML = '<span class="text-danger"><i class="fa-solid fa-circle-xmark"></i> ' + d.message + '</span>';
+        }
+    })
+    .catch(function () {
+        res.innerHTML = '<span class="text-danger">রিকোয়েস্ট ব্যর্থ হয়েছে।</span>';
+    })
+    .finally(function () { btn.disabled = false; });
+});
+
+// Test IVR Call Handler
+document.getElementById('btn-test-ivr')?.addEventListener('click', function () {
+    var btn = this;
+    var res = document.getElementById('test-ivr-result');
+    var phone = document.getElementById('test-ivr-phone').value.trim();
+    if (!phone) {
+        alert('অনুগ্রহ করে ফোন নম্বর লিখুন।');
+        return;
+    }
+    btn.disabled = true;
+    res.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> কল পাঠানো হচ্ছে... অনুগ্রহ করে আপনার ফোনে লক্ষ্য করুন...';
+
+    var fd = new FormData();
+    fd.append('<?= $this->security->get_csrf_token_name() ?>', '<?= $this->security->get_csrf_hash() ?>');
+    fd.append('phone', phone);
+
+    fetch('<?= admin_url('pbxpilot/settings/test_ivr') ?>', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.success) {
+            res.innerHTML = '<span class="text-success font-medium"><i class="fa-solid fa-circle-check"></i> ' + d.message + '</span>';
+        } else {
+            res.innerHTML = '<span class="text-danger"><i class="fa-solid fa-circle-xmark"></i> ' + d.message + '</span>';
+        }
+    })
+    .catch(function () {
+        res.innerHTML = '<span class="text-danger">রিকোয়েস্ট ব্যর্থ হয়েছে।</span>';
+    })
+    .finally(function () { btn.disabled = false; });
+});
+
+// Audio Prompt Upload Handler
+document.querySelectorAll('.btn-upload-prompt').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var slot = this.getAttribute('data-slot');
+        var fileInput = document.getElementById('prompt-file-' + slot);
+        var status = document.getElementById('prompt-upload-status-' + slot);
+        if (!fileInput || !fileInput.files.length) {
+            alert('অনুগ্রহ করে অডিও ফাইল নির্বাচন করুন।');
+            return;
+        }
+        var file = fileInput.files[0];
+        var fd = new FormData();
+        fd.append('<?= $this->security->get_csrf_token_name() ?>', '<?= $this->security->get_csrf_hash() ?>');
+        fd.append('slot', slot);
+        fd.append('audio_file', file);
+
+        btn.disabled = true;
+        status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> অডিও আপলোড ও 8kHz ফরম্যাটে রূপান্তর হচ্ছে... PBX-এ স্থাপন চলছে...';
+
+        fetch('<?= admin_url('pbxpilot/settings/upload_prompt') ?>', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.success) {
+                status.innerHTML = '<span class="text-success"><i class="fa-solid fa-circle-check"></i> ' + d.message + ' (রিলোড হচ্ছে...)</span>';
+                setTimeout(function () { location.reload(); }, 1200);
+            } else {
+                status.innerHTML = '<span class="text-danger"><i class="fa-solid fa-circle-xmark"></i> ' + d.message + '</span>';
+            }
+        })
+        .catch(function () {
+            status.innerHTML = '<span class="text-danger">আপলোড ব্যর্থ হয়েছে।</span>';
+        })
+        .finally(function () { btn.disabled = false; });
+    });
+});
+
 </script>
 
 <?php init_tail(); ?>

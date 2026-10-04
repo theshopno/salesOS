@@ -25,10 +25,29 @@ hooks()->add_action('app_init',   'pos_load_resources');
 hooks()->add_action('admin_init', 'pos_register_menu');
 hooks()->add_action('admin_init', 'pos_register_permissions');
 
+if (!function_exists('salesos_format_number')) {
+    function salesos_format_number($number, $decimals = null)
+    {
+        if (!is_numeric($number)) {
+            return $number;
+        }
+        if ($decimals === null) {
+            $decimals = function_exists('get_decimal_places') ? get_decimal_places() : 2;
+        }
+        if (get_option('remove_decimals_on_zero') == 1) {
+            if (round($number, $decimals) == (int)$number) {
+                $decimals = 0;
+            }
+        }
+        $decimal_separator  = get_option('decimal_separator') ?: '.';
+        $thousand_separator = get_option('thousand_separator') ?: '';
+        return number_format((float)$number, $decimals, $decimal_separator, $thousand_separator);
+    }
+}
+
 function pos_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     $CI->load->model(POS_MODULE_NAME . '/pos_model');
 }
 
@@ -47,17 +66,16 @@ function pos_register_permissions(): void
 function pos_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
-    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
+    if ($CI->app_modules->is_active('salesos') && function_exists('salesos_ecommerce_enabled') && !salesos_ecommerce_enabled()) { 
+        return; 
+    }
     if (!staff_can('view', POS_MODULE_NAME)) { return; }
 
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'pos-cashier',
-        'name'     => 'POS Sale',
+    $CI->app_menu->add_sidebar_menu_item('pos-main', [
+        'slug'     => 'pos-main',
+        'name'     => 'POS',
+        'icon'     => 'fa fa-calculator',
         'href'     => admin_url('pos'),
-        // The counter screen — for a shop seller this is the most-opened page
-        // in the whole product, so it sits near the top, not last.
-        'position' => 4,
+        'position' => 27,
     ]);
-
 }

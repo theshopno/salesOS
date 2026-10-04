@@ -8,23 +8,77 @@ defined('BASEPATH') or exit('No direct script access allowed');
  */
 function pbxpilot_get_option(string $key, $default = null)
 {
-    $CI = &get_instance();
-    $row = $CI->db->query(
-        'SELECT svalue FROM `' . db_prefix() . 'pbxpilot_settings` WHERE skey = ?',
-        [$key]
-    )->row();
+    if (function_exists('get_instance')) {
+        $CI = &get_instance();
+        if ($CI && isset($CI->db)) {
+            $prefix = function_exists('db_prefix') ? db_prefix() : 'tbl';
+            $row = $CI->db->query(
+                'SELECT svalue FROM `' . $prefix . 'pbxpilot_settings` WHERE skey = ?',
+                [$key]
+            )->row();
 
-    return $row ? $row->svalue : $default;
+            return $row ? $row->svalue : $default;
+        }
+    }
+
+    // CLI / Standalone fallback
+    static $cli_db = null;
+    if ($cli_db === null) {
+        if (!defined('APP_DB_HOSTNAME')) {
+            $cfg = dirname(__DIR__, 3) . '/application/config/app-config.php';
+            if (is_file($cfg)) {
+                require_once $cfg;
+            }
+        }
+        if (defined('APP_DB_HOSTNAME')) {
+            $cli_db = @new mysqli(APP_DB_HOSTNAME, APP_DB_USERNAME, APP_DB_PASSWORD, APP_DB_NAME);
+        }
+    }
+
+    if ($cli_db && !$cli_db->connect_errno) {
+        $stmt = $cli_db->prepare('SELECT svalue FROM tblpbxpilot_settings WHERE skey = ?');
+        $stmt->bind_param('s', $key);
+        $stmt->execute();
+        $stmt->bind_result($val);
+        $found = $stmt->fetch();
+        $stmt->close();
+
+        return $found && $val !== null ? $val : $default;
+    }
+
+    return $default;
 }
 
 function pbxpilot_update_option(string $key, $value): bool
 {
-    $CI = &get_instance();
-    $CI->db->query(
-        'INSERT INTO `' . db_prefix() . 'pbxpilot_settings` (skey, svalue) VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)',
-        [$key, $value]
-    );
+    if (function_exists('get_instance')) {
+        $CI = &get_instance();
+        if ($CI && isset($CI->db)) {
+            $prefix = function_exists('db_prefix') ? db_prefix() : 'tbl';
+            $CI->db->query(
+                'INSERT INTO `' . $prefix . 'pbxpilot_settings` (skey, svalue) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)',
+                [$key, $value]
+            );
+
+            return true;
+        }
+    }
+
+    // CLI / Standalone fallback
+    static $cli_db_up = null;
+    if ($cli_db_up === null && defined('APP_DB_HOSTNAME')) {
+        $cli_db_up = @new mysqli(APP_DB_HOSTNAME, APP_DB_USERNAME, APP_DB_PASSWORD, APP_DB_NAME);
+    }
+    if ($cli_db_up && !$cli_db_up->connect_errno) {
+        $stmt = $cli_db_up->prepare(
+            'INSERT INTO tblpbxpilot_settings (skey, svalue) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)'
+        );
+        $stmt->bind_param('ss', $key, $value);
+        $stmt->execute();
+        $stmt->close();
+    }
 
     return true;
 }

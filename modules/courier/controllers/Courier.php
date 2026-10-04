@@ -7,9 +7,13 @@ class Courier extends AdminController
     public function __construct()
     {
         parent::__construct();
-        salesos_require_ecommerce();
+        if (function_exists('salesos_require_ecommerce')) {
+            salesos_require_ecommerce();
+        }
         $this->load->model('courier_model');
-        $this->load->model('salesos/salesos_model');
+        if ($this->app_modules->is_active('salesos')) {
+            $this->load->model('salesos/salesos_model');
+        }
     }
 
     /**
@@ -82,7 +86,7 @@ class Courier extends AdminController
                 set_alert('danger', $e->getMessage());
             }
         }
-        redirect(admin_url('salesos/settings?tab=couriers'));
+        redirect(admin_url($this->app_modules->is_active('salesos') ? 'salesos/settings?tab=couriers' : 'courier/consignments'));
     }
 
     /**

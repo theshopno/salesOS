@@ -32,12 +32,29 @@ hooks()->add_action('courier_consignment_status_changed', 'courier_log_status_ch
 // Background status sync hook
 hooks()->add_action('after_cron_run', 'courier_handle_cron_sync');
 
+if (!function_exists('salesos_format_number')) {
+    function salesos_format_number($number, $decimals = null)
+    {
+        if (!is_numeric($number)) {
+            return $number;
+        }
+        if ($decimals === null) {
+            $decimals = function_exists('get_decimal_places') ? get_decimal_places() : 2;
+        }
+        if (get_option('remove_decimals_on_zero') == 1) {
+            if (round($number, $decimals) == (int)$number) {
+                $decimals = 0;
+            }
+        }
+        $decimal_separator  = get_option('decimal_separator') ?: '.';
+        $thousand_separator = get_option('thousand_separator') ?: '';
+        return number_format((float)$number, $decimals, $decimal_separator, $thousand_separator);
+    }
+}
+
 function courier_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) {
-        return;
-    }
     $CI->load->model(COURIER_MODULE_NAME . '/courier_model');
 }
 
@@ -59,19 +76,33 @@ function courier_register_permissions(): void
 function courier_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; }
-    if (!salesos_ecommerce_enabled()) { return; }
+    if ($CI->app_modules->is_active('salesos') && function_exists('salesos_ecommerce_enabled') && !salesos_ecommerce_enabled()) { 
+        return; 
+    }
     if (!staff_can('view', COURIER_MODULE_NAME)) { return; }
 
-    // Chasing parcels is daily work in a cash-on-delivery business, so this sits
-    // in the main menu next to Returns rather than behind Settings — where the
-    // courier accounts themselves still live.
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'courier-consignments',
-        'name'     => 'Consignments',
-        'href'     => admin_url('courier/consignments'),
-        'position' => 7,
-    ]);
+    if ($CI->app_modules->is_active('salesos')) {
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'courier-consignments',
+            'name'     => 'Consignments',
+            'href'     => admin_url('courier/consignments'),
+            'position' => 7,
+        ]);
+    } else {
+        $CI->app_menu->add_sidebar_menu_item('courier-main', [
+            'slug'     => 'courier-main',
+            'name'     => 'Courier',
+            'icon'     => 'fa fa-truck',
+            'href'     => admin_url('courier/consignments'),
+            'position' => 31,
+        ]);
+        $CI->app_menu->add_sidebar_children_item('courier-main', [
+            'slug'     => 'courier-consignments',
+            'name'     => 'Consignments',
+            'href'     => admin_url('courier/consignments'),
+            'position' => 5,
+        ]);
+    }
 }
 
 function courier_log_status_change($data): void

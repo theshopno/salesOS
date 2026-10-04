@@ -300,20 +300,20 @@
                 
                 <div class="summary-row">
                     <span>Subtotal:</span>
-                    <strong id="summary-subtotal">0.00 BDT</strong>
+                    <strong id="summary-subtotal">0 BDT</strong>
                 </div>
                 <div class="summary-row">
                     <span>Discount:</span>
-                    <strong id="summary-discount" style="color: #ef4444;">0.00 BDT</strong>
+                    <strong id="summary-discount" style="color: #ef4444;">0 BDT</strong>
                 </div>
                 <div class="summary-row">
                     <span>Shipping:</span>
-                    <strong id="summary-shipping">0.00 BDT</strong>
+                    <strong id="summary-shipping">0 BDT</strong>
                 </div>
                 
                 <div class="payable-block">
                     <div class="payable-title">TOTAL PAYABLE</div>
-                    <div class="payable-value" id="summary-total">0.00 BDT</div>
+                    <div class="payable-value" id="summary-total">0 BDT</div>
                 </div>
             </div>
             
@@ -329,6 +329,21 @@
 
     <!-- Script to listen to BroadcastChannel -->
     <script>
+        window.remove_decimals_on_zero = '<?= get_option('remove_decimals_on_zero') ?: '1' ?>';
+        function formatMoney(number, decimals) {
+            if (decimals === undefined) decimals = 2;
+            var num = parseFloat(number);
+            if (isNaN(num)) return '0';
+            if (window.remove_decimals_on_zero == '1' && num === Math.floor(num)) {
+                return Math.floor(num).toString();
+            }
+            var formatted = num.toFixed(decimals);
+            if (window.remove_decimals_on_zero == '1') {
+                formatted = formatted.replace(/\.?0+$/, '');
+            }
+            return formatted;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             var welcomeView = document.getElementById('welcome-view');
             var cartListView = document.getElementById('cart-list-view');
@@ -350,10 +365,10 @@
                     welcomeView.style.display = 'flex';
                     cartListView.style.display = 'none';
                     
-                    summarySubtotal.innerText = '0.00 BDT';
-                    summaryDiscount.innerText = '0.00 BDT';
-                    summaryShipping.innerText = '0.00 BDT';
-                    summaryTotal.innerText = '0.00 BDT';
+                    summarySubtotal.innerText = '0 BDT';
+                    summaryDiscount.innerText = '0 BDT';
+                    summaryShipping.innerText = '0 BDT';
+                    summaryTotal.innerText = '0 BDT';
                     return;
                 }
 
@@ -379,7 +394,7 @@
                         '  <span class="item-qty-badge">' + item.qty + '</span>' +
                         '</td>' +
                         '<td style="text-align:right; font-weight:700; color: #38bdf8;">' +
-                           number_format(lineTotal, 2) + ' BDT' +
+                           formatMoney(lineTotal) + ' BDT' +
                         '</td>';
                     itemsBody.appendChild(row);
                 });
@@ -393,10 +408,10 @@
                 }
 
                 // Update summary card
-                summarySubtotal.innerText = number_format(data.subtotal, 2) + ' BDT';
-                summaryDiscount.innerText = number_format(discountTotal, 2) + ' BDT';
-                summaryShipping.innerText = number_format(data.shipping, 2) + ' BDT';
-                summaryTotal.innerText = number_format(data.total, 2) + ' BDT';
+                summarySubtotal.innerText = formatMoney(data.subtotal) + ' BDT';
+                summaryDiscount.innerText = formatMoney(discountTotal) + ' BDT';
+                summaryShipping.innerText = formatMoney(data.shipping) + ' BDT';
+                summaryTotal.innerText = formatMoney(data.total) + ' BDT';
             };
         });
     </script>

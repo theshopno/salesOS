@@ -26,14 +26,34 @@ hooks()->add_action('admin_init', 'inventory_register_menu');
 hooks()->add_action('admin_init', 'inventory_register_permissions');
 
 // Listeners for Salesos order events
+hooks()->add_action('salesos_order_created',   'inventory_handle_order_created');
 hooks()->add_action('salesos_order_confirmed', 'inventory_handle_order_confirmed');
 hooks()->add_action('salesos_order_cancelled', 'inventory_handle_order_cancelled');
 hooks()->add_action('salesos_stock_returned',  'inventory_handle_stock_returned');
 
+if (!function_exists('salesos_format_number')) {
+    function salesos_format_number($number, $decimals = null)
+    {
+        if (!is_numeric($number)) {
+            return $number;
+        }
+        if ($decimals === null) {
+            $decimals = function_exists('get_decimal_places') ? get_decimal_places() : 2;
+        }
+        if (get_option('remove_decimals_on_zero') == 1) {
+            if (round($number, $decimals) == (int)$number) {
+                $decimals = 0;
+            }
+        }
+        $decimal_separator  = get_option('decimal_separator') ?: '.';
+        $thousand_separator = get_option('thousand_separator') ?: '';
+        return number_format((float)$number, $decimals, $decimal_separator, $thousand_separator);
+    }
+}
+
 function inventory_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     $CI->load->model(INVENTORY_MODULE_NAME . '/inventory_model');
 }
 
@@ -55,29 +75,57 @@ function inventory_register_permissions(): void
 function inventory_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
-    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
+    if ($CI->app_modules->is_active('salesos') && function_exists('salesos_ecommerce_enabled') && !salesos_ecommerce_enabled()) { 
+        return; 
+    }
     if (!staff_can('view', INVENTORY_MODULE_NAME)) { return; }
 
-    // Only the two screens used during normal stock work stay in main
-    // navigation. Categories and the inventory settings are set up once and
-    // then left alone, so they are reached from SalesOS → Settings instead.
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-products',
-        'name'     => 'Products',
-        'href'     => admin_url('inventory/products'),
-        'position' => 5,
-    ]);
+    if ($CI->app_modules->is_active('salesos')) {
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'inventory-products',
+            'name'     => 'Products',
+            'href'     => admin_url('inventory/products'),
+            'position' => 5,
+        ]);
 
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'inventory-adjustments',
-        'name'     => 'Stock Ledger',
-        'href'     => admin_url('inventory/adjustments'),
-        'position' => 9,
-    ]);
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'inventory-adjustments',
+            'name'     => 'Stock Ledger',
+            'href'     => admin_url('inventory/adjustments'),
+            'position' => 9,
+        ]);
+    } else {
+        $CI->app_menu->add_sidebar_menu_item('inventory-main', [
+            'slug'     => 'inventory-main',
+            'name'     => 'Inventory',
+            'icon'     => 'fa fa-cubes',
+            'href'     => admin_url('inventory/products'),
+            'position' => 30,
+        ]);
+        $CI->app_menu->add_sidebar_children_item('inventory-main', [
+            'slug'     => 'inventory-products',
+            'name'     => 'Products',
+            'href'     => admin_url('inventory/products'),
+            'position' => 5,
+        ]);
+        $CI->app_menu->add_sidebar_children_item('inventory-main', [
+            'slug'     => 'inventory-adjustments',
+            'name'     => 'Stock Ledger',
+            'href'     => admin_url('inventory/adjustments'),
+            'position' => 10,
+        ]);
+    }
 }
 
 // ── Hook Handlers ────────────────────────────────────────────────────────────
+function inventory_handle_order_created($order_id): void
+{
+    $CI = &get_instance();
+    if (!$CI->app_modules->is_active('salesos')) { return; }
+    $CI->load->model('inventory/inventory_model');
+    $CI->inventory_model->handle_order_created($order_id);
+}
+
 function inventory_handle_order_confirmed($order_id): void
 {
     $CI = &get_instance();

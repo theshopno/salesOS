@@ -117,18 +117,33 @@ foreach ($defaults as $key => $value) {
     );
 }
 
-// ── Agents (staff ↔ extension mapping — needed by click-to-call) ────────────
+// ── Agents (staff ↔ extension & Bizbot WhatsApp mapping) ────────────
 if (!$CI->db->table_exists(db_prefix() . 'pbxpilot_agents')) {
     $CI->db->query('CREATE TABLE `' . db_prefix() . 'pbxpilot_agents` (
-        `id`         INT(11)      NOT NULL AUTO_INCREMENT,
-        `staff_id`   INT(11)      NOT NULL,
-        `extension`  VARCHAR(20)  NOT NULL,
-        `is_active`  TINYINT(1)   NOT NULL DEFAULT 1,
-        `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `id`                INT(11)      NOT NULL AUTO_INCREMENT,
+        `staff_id`          INT(11)      NOT NULL,
+        `extension`         VARCHAR(20)  DEFAULT NULL,
+        `bizbot_agent_guid` VARCHAR(64)  DEFAULT NULL,
+        `whatsapp_aliases`  TEXT         DEFAULT NULL,
+        `caller_id`         VARCHAR(32)  DEFAULT NULL,
+        `is_active`         TINYINT(1)   NOT NULL DEFAULT 1,
+        `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (`id`),
         UNIQUE KEY `staff_id`  (`staff_id`),
         UNIQUE KEY `extension` (`extension`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;');
+} else {
+    // Migration: ensure new unified channel fields exist
+    $fields = $CI->db->list_fields(db_prefix() . 'pbxpilot_agents');
+    if (!in_array('bizbot_agent_guid', $fields)) {
+        $CI->db->query('ALTER TABLE `' . db_prefix() . 'pbxpilot_agents` ADD COLUMN `bizbot_agent_guid` VARCHAR(64) NULL DEFAULT NULL AFTER `extension`');
+    }
+    if (!in_array('whatsapp_aliases', $fields)) {
+        $CI->db->query('ALTER TABLE `' . db_prefix() . 'pbxpilot_agents` ADD COLUMN `whatsapp_aliases` TEXT NULL DEFAULT NULL AFTER `bizbot_agent_guid`');
+    }
+    if (!in_array('caller_id', $fields)) {
+        $CI->db->query('ALTER TABLE `' . db_prefix() . 'pbxpilot_agents` ADD COLUMN `caller_id` VARCHAR(32) NULL DEFAULT NULL AFTER `whatsapp_aliases`');
+    }
 }
 
 // ── Calls (CDR mirror + CRM enrichment) ──────────────────────────────────────

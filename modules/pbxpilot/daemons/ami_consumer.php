@@ -123,6 +123,16 @@ function handle_event(array $event, array $agents_by_ext): ?array
         return ['action' => 'clear', 'data' => ['uniqueid' => $uid]];
     }
 
+    if ($type === 'UserEvent' && ($event['UserEvent'] ?? '') === 'IvrOrderConfirm') {
+        return ['action' => 'ivr_order_confirm', 'data' => [
+            'order_id' => (int) ($event['OrderId'] ?? 0),
+            'result'   => $event['Result'] ?? 'unknown',
+            'phone'    => $event['Phone'] ?? '',
+            'digit'    => $event['Digit'] ?? '',
+            'uniqueid' => $event['Uniqueid'] ?? '',
+        ]];
+    }
+
     return null;
 }
 
@@ -145,6 +155,62 @@ function apply_action(mysqli $db, array $result): void
         $stmt->bind_param('s', $uid);
         $stmt->execute();
         $stmt->close();
+    } elseif ($result['action'] === 'ivr_order_confirm') {
+        $d = $result['data'];
+        $order_id = (int) $d['order_id'];
+        $res      = $d['result'];
+        $digit    = $d['digit'];
+        $phone    = $d['phone'];
+        $uid      = $d['uniqueid'];
+
+        if ($order_id > 0) {
+            $notes = "IVR call completed: result = {$res}" . ($digit !== '' ? " (DTMF digit: {$digit})" : "");
+
+            // Update IVR log
+            $stmt = $db->prepare(
+                'UPDATE tblpbxpilot_ivr_logs 
+                 SET result = ?, dtmf_digit = ?, notes = ?, uniqueid = ? 
+                 WHERE order_id = ? ORDER BY id DESC LIMIT 1'
+            );
+            $stmt->bind_param('ssssi', $res, $digit, $notes, $uid, $order_id);
+            $stmt->execute();
+            $stmt->close();
+
+            // Update order status via internal webhook so SalesOS kernel fires notification hooks
+            if (in_array($res, ['confirmed', 'cancelled'], true)) {
+                $secret = 'pbxpilot_ivr_internal_secret_key_88';
+                $webhook_url = 'http://127.0.0.1/pbxpilot/ivr_webhook/order_status';
+
+                $ch = curl_init($webhook_url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+                    'token'    => $secret,
+                    'order_id' => $order_id,
+                    'status'   => $res,
+                    'digit'    => $digit,
+                    'phone'    => $phone,
+                ]));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Host: crm.test']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+                $resp = curl_exec($ch);
+                $curl_err = curl_error($ch);
+                curl_close($ch);
+
+                log_line("IVR ORDER " . strtoupper($res) . ": Order #{$order_id} via phone {$phone} (digit {$digit}). Webhook: " . ($curl_err ?: $resp));
+            } else {
+                log_line("IVR ORDER RESULT: Order #{$order_id} -> {$res}");
+            }
+
+            // Log salesos event
+            $event_type  = 'ivr_order_' . $res;
+            $entity_type = 'order';
+            $payload     = json_encode(['order_id' => $order_id, 'result' => $res, 'digit' => $digit, 'phone' => $phone]);
+            $stmt = $db->prepare('INSERT INTO tblsalesos_events (event_type, entity_type, entity_id, payload) VALUES (?, ?, ?, ?)');
+            $stmt->bind_param('ssis', $event_type, $entity_type, $order_id, $payload);
+            $stmt->execute();
+            $stmt->close();
+        }
     }
 }
 

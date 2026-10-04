@@ -19,7 +19,9 @@ class Wcsync_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-        $this->load->model('salesos/salesos_model');
+        if ($this->app_modules->is_active('salesos')) {
+            $this->load->model('salesos/salesos_model');
+        }
         $this->load->library('wcsync/woocommerce_channel');
         $this->channel = $this->woocommerce_channel;
     }
@@ -100,4 +102,100 @@ class Wcsync_model extends App_Model
 
         return $stats;
     }
+
+    // ── Catalog Sync ─────────────────────────────────────────────────────────
+
+    public function sync_catalog_page(int $site_id, int $page = 1, int $per_page = 50): array
+    {
+        $site = $this->get_site($site_id);
+        if (!$site) {
+            return ['success' => false, 'error' => 'WooCommerce site not found.'];
+        }
+
+        return $this->channel->sync_catalog_page($site, $page, $per_page);
+    }
+
+    public function push_product(int $product_id, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->push_product($site, $product_id);
+    }
+
+    public function push_stock(int $product_id, float $qty, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->push_stock($site, $product_id, $qty);
+    }
+
+    public function get_default_site(): ?array
+    {
+        $sites = $this->get_sites();
+        return !empty($sites) ? $sites[0] : null;
+    }
+
+    public function get_synced_products_count(): int
+    {
+        return (int) $this->db->where('external_platform', self::PLATFORM)
+            ->count_all_results(db_prefix() . 'inventory_products');
+    }
+
+    public function search_store_products(string $query = '', int $page = 1, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->search_store_products($site, $query, $page);
+    }
+
+    public function import_specific_products(array $wc_ids, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->import_specific_products($site, $wc_ids);
+    }
+
+    public function push_multiple_products(array $product_ids, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->push_multiple_products($site, $product_ids);
+    }
+
+    public function push_all_products(?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->push_all_products($site);
+    }
+
+    public function push_chunk_products(int $page = 1, int $per_page = 10, ?int $site_id = null): array
+    {
+        $site = $site_id ? $this->get_site($site_id) : $this->get_default_site();
+        if (!$site) {
+            return ['success' => false, 'error' => 'No active WooCommerce site.'];
+        }
+
+        return $this->channel->push_chunk_products($site, $page, $per_page);
+    }
 }
+
+

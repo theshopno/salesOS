@@ -202,7 +202,13 @@ abstract class Salesos_channel
         // waiting order as updated on every single sync, forever.
         $held = $this->confirmation_pending($existing, $order);
 
-        $status_changed  = !$held && $existing['status'] !== $order['status'];
+        // Terminal State Protection: Once an order has been confirmed, cancelled,
+        // shipped or delivered in CRM, an external storefront reporting 'pending'
+        // must never roll the CRM status backwards.
+        $demote_blocked = in_array($existing['status'], ['confirmed', 'cancelled', 'shipped', 'delivered', 'returned'], true)
+            && $order['status'] === 'pending';
+
+        $status_changed  = !$held && !$demote_blocked && $existing['status'] !== $order['status'];
         $channel_changed = ($existing['channel_status'] ?? null) !== $order['external_status'];
 
         if (!$status_changed && !$channel_changed) {

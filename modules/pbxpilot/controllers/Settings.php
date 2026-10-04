@@ -15,6 +15,7 @@ class Settings extends AdminController
         'pbxpilot_agency_bizbot_messaging',
         'pbxpilot_agency_bizbot_provisioning',
         'pbxpilot_voice_escalation',
+        'pbxpilot_auto_ivr_enabled',
     ];
 
     private const TEXT_KEYS = [
@@ -22,6 +23,14 @@ class Settings extends AdminController
         'pbxpilot_ai_model',
         'pbxpilot_effective_call_seconds',
         'pbxpilot_recording_retention_days',
+        'pbxpilot_ivr_calling_start_hour',
+        'pbxpilot_ivr_calling_end_hour',
+        'pbxpilot_ivr_caller_id',
+        'pbxpilot_ivr_max_retries',
+        'pbxpilot_ivr_retry_delay_minutes',
+        'pbxpilot_ivr_prompt_main',
+        'pbxpilot_ivr_prompt_confirm',
+        'pbxpilot_ivr_prompt_cancel',
     ];
 
     /** Connection settings (§8a) — where pbxpilot points, not tied to any one box. */
@@ -70,7 +79,90 @@ class Settings extends AdminController
 
         $data['escalation_gate'] = pbxpilot_voice_escalation_gate_status();
 
+        $this->load->library(PBXPILOT_MODULE_NAME . '/Audio_service');
+        $data['prompt_slots'] = $this->audio_service->get_prompt_slots();
+
         $this->load->view('pbxpilot/settings', $data);
+    }
+
+    /** AJAX: Upload, transcode and deploy IVR sound prompt. */
+    public function upload_prompt()
+    {
+        if (!staff_can('settings', PBXPILOT_MODULE_NAME)) {
+            header('HTTP/1.0 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            return;
+        }
+
+        $slot = (string) $this->input->post('slot');
+        if (empty($_FILES['audio_file'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'কোনো অডিও ফাইল পাওয়া যায়নি।']);
+            return;
+        }
+
+        $this->load->library(PBXPILOT_MODULE_NAME . '/Audio_service');
+        $result = $this->audio_service->upload_and_deploy($slot, $_FILES['audio_file']);
+        header('Content-Type: application/json');
+        echo json_encode($result);
+    }
+
+    /** AJAX: Send instant Test Call with selected IVR prompts. */
+    public function test_ivr()
+    {
+        if (!staff_can('settings', PBXPILOT_MODULE_NAME)) {
+            header('HTTP/1.0 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            return;
+        }
+
+        $phone = trim((string) $this->input->post('phone'));
+        if (empty($phone)) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'ফোন নম্বর লিখুন।']);
+            return;
+        }
+
+        $this->load->library(PBXPILOT_MODULE_NAME . '/Ivr_service');
+        $res = $this->ivr_service->trigger_order_confirmation(0, $phone);
+        header('Content-Type: application/json');
+        echo json_encode($res);
+    }
+
+    /** AJAX: One-Click Auto-Fill & Connect to Munzu PBX (Zero technical hassle for non-technical users) */
+    public function load_preset()
+    {
+        if (!staff_can('settings', PBXPILOT_MODULE_NAME)) {
+            header('HTTP/1.0 403 Forbidden');
+            echo json_encode(['success' => false, 'message' => 'Permission denied']);
+            return;
+        }
+
+        $preset = [
+            'pbxpilot_ami_host'               => '127.0.0.1',
+            'pbxpilot_ami_port'               => '15038',
+            'pbxpilot_ami_username'           => 'crm-api',
+            'pbxpilot_ami_secret'             => 'Sos2vKTuQpr8kGmYc1nBHQ7L',
+            'pbxpilot_cdr_db_host'            => '127.0.0.1',
+            'pbxpilot_cdr_db_port'            => '23306',
+            'pbxpilot_cdr_db_name'            => 'asteriskcdrdb',
+            'pbxpilot_cdr_db_user'            => 'asterisk_cdr',
+            'pbxpilot_cdr_db_password'        => 'Xr4mFdWQvcNyoZ1eB9jKe6VT',
+            'pbxpilot_recordings_url'         => 'http://127.0.0.1:18088/static/recordings/',
+            'pbxpilot_recordings_monitor_dir' => '/var/spool/asterisk/monitor',
+            'pbxpilot_ivr_caller_id'          => '09638881188',
+        ];
+
+        foreach ($preset as $k => $v) {
+            pbxpilot_update_option($k, $v);
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => 'হোস্টেড Munzu PBX ক্রেডেনশিয়াল ও কানেকশন স্বয়ংক্রিয়ভাবে সেট করা হয়েছে!',
+            'preset'  => $preset,
+        ]);
     }
 
     /** AJAX: Settings → Connection → Test Connection button. */

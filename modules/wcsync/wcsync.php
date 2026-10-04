@@ -26,10 +26,29 @@ hooks()->add_action('admin_init', 'wcsync_register_menu');
 hooks()->add_action('admin_init', 'wcsync_register_permissions');
 hooks()->add_action('after_cron_run', 'wcsync_cron_run');
 
+if (!function_exists('salesos_format_number')) {
+    function salesos_format_number($number, $decimals = null)
+    {
+        if (!is_numeric($number)) {
+            return $number;
+        }
+        if ($decimals === null) {
+            $decimals = function_exists('get_decimal_places') ? get_decimal_places() : 2;
+        }
+        if (get_option('remove_decimals_on_zero') == 1) {
+            if (round($number, $decimals) == (int)$number) {
+                $decimals = 0;
+            }
+        }
+        $decimal_separator  = get_option('decimal_separator') ?: '.';
+        $thousand_separator = get_option('thousand_separator') ?: '';
+        return number_format((float)$number, $decimals, $decimal_separator, $thousand_separator);
+    }
+}
+
 function wcsync_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos')) { return; } // Guard
     $CI->load->model(WCSYNC_MODULE_NAME . '/wcsync_model');
 }
 

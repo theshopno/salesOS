@@ -25,18 +25,22 @@ class Salesos_encryption
         if (is_array($data) || is_object($data)) {
             $data = json_encode($data);
         }
-        return $this->CI->encryption->encrypt($data);
+        $res = $this->CI->encryption->encrypt($data);
+        return is_string($res) ? $res : '';
     }
 
     /**
      * Decrypt an encrypted payload
      *
-     * @param string $encrypted_data
+     * @param string|null $encrypted_data
      * @param bool $as_array Decrypt and parse JSON as array
      * @return mixed
      */
-    public function decrypt(string $encrypted_data, bool $as_array = false)
+    public function decrypt(?string $encrypted_data, bool $as_array = false)
     {
+        if (empty($encrypted_data)) {
+            return null;
+        }
         $decrypted = $this->CI->encryption->decrypt($encrypted_data);
         if ($decrypted === false) {
             return null;

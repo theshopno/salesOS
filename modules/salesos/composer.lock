@@ -1,0 +1,178 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "28777e26ccb26ad26b0bac82f1e89d24",
+    "packages": [
+        {
+            "name": "licentra/codeigniter-sdk",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "/home/fizz/Projects/licentra/packages/codeigniter-sdk",
+                "reference": "61773471371860ffc383a382b42ac84c32dffc49"
+            },
+            "require": {
+                "licentra/php-sdk": "@dev",
+                "php": "^8.2",
+                "psr/simple-cache": "^2.0 || ^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0"
+            },
+            "suggest": {
+                "ext-curl": "Required for CodeIgniterHttpClient transport"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Licentra\\CodeIgniter\\": "src/"
+                },
+                "files": [
+                    "src/Helpers/licentra_helper.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Licentra\\CodeIgniter\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Licentra Core Team",
+                    "email": "dev@licentra.io"
+                }
+            ],
+            "description": "CodeIgniter 3 SDK and application licensing integration adapter for Licentra.",
+            "transport-options": {
+                "relative": false
+            }
+        },
+        {
+            "name": "licentra/php-sdk",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "/home/fizz/Projects/licentra/packages/php-sdk",
+                "reference": "02317c448c73d39a18f11c7231f406641a776ed6"
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-sodium": "*",
+                "php": "^8.2",
+                "psr/simple-cache": "^2.0 || ^3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0"
+            },
+            "suggest": {
+                "ext-curl": "Required to use the default CurlHttpClient",
+                "illuminate/support": "Required to use the Laravel integration adapter and service provider",
+                "psr/http-client": "Required to use PsrHttpClientAdapter with PSR-18 clients"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Licentra\\Sdk\\Integrations\\Laravel\\LicentraServiceProvider"
+                    ],
+                    "aliases": {
+                        "Licentra": "Licentra\\Sdk\\Integrations\\Laravel\\Facades\\Licentra"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Licentra\\Sdk\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Licentra\\Sdk\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Licentra Core Team",
+                    "email": "dev@licentra.io"
+                }
+            ],
+            "description": "Production-quality, framework-agnostic PHP Core SDK and Laravel integration adapter for Licentra License Platform.",
+            "transport-options": {
+                "relative": false
+            }
+        },
+        {
+            "name": "psr/simple-cache",
+            "version": "3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/simple-cache.git",
+                "reference": "764e0b3939f5ca87cb904f570ef9be2d78a07865"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/simple-cache/zipball/764e0b3939f5ca87cb904f570ef9be2d78a07865",
+                "reference": "764e0b3939f5ca87cb904f570ef9be2d78a07865",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\SimpleCache\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interfaces for simple caching",
+            "keywords": [
+                "cache",
+                "caching",
+                "psr",
+                "psr-16",
+                "simple-cache"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
+            },
+            "time": "2021-10-29T13:26:27+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "licentra/codeigniter-sdk": 20
+    },
+    "prefer-stable": true,
+    "prefer-lowest": false,
+    "platform": {
+        "php": "^8.2"
+    },
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

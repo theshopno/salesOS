@@ -151,7 +151,7 @@
             <div class="ship-to">
                 <h3>Shipping Details</h3>
                 <p><strong>Address:</strong> <?= nl2br(e($order['customer_address'])) ?></p>
-                <p><strong>Payment Method:</strong> <?= ucfirst(str_replace('_', ' ', $order['payment_method'])) ?></p>
+                <p><strong>Payment Method:</strong> <?= ucfirst(str_replace('_', ' ', (string)($order['payment_method'] ?? 'COD'))) ?></p>
             </div>
         </div>
 

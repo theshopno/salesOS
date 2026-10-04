@@ -15,24 +15,39 @@ class Returns_model extends App_Model
     public function get($id = '')
     {
         $db_prefix = db_prefix();
+        $has_salesos = $this->db->table_exists($db_prefix . 'salesos_orders');
+        $has_salesos_items = $this->db->table_exists($db_prefix . 'salesos_order_items');
+
         if (is_numeric($id)) {
-            $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id, tblstaff.firstname, tblstaff.lastname");
-            $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
+            if ($has_salesos) {
+                $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id, tblstaff.firstname, tblstaff.lastname");
+                $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
+            } else {
+                $this->db->select("{$db_prefix}returns_orders.*, '' AS channel, '' AS channel_ref_id, tblstaff.firstname, tblstaff.lastname");
+            }
             $this->db->join('tblstaff', 'tblstaff.staffid = ' . $db_prefix . 'returns_orders.staff_id', 'left');
             $this->db->where($db_prefix . 'returns_orders.id', $id);
             $ret = $this->db->get($db_prefix . 'returns_orders')->row();
             if ($ret) {
                 // Fetch line items
-                $this->db->select("{$db_prefix}returns_order_items.*, {$db_prefix}salesos_order_items.name as product_name, {$db_prefix}salesos_order_items.sku as product_sku, {$db_prefix}salesos_order_items.product_id");
-                $this->db->join($db_prefix . 'salesos_order_items', $db_prefix . 'salesos_order_items.id = ' . $db_prefix . 'returns_order_items.order_item_id', 'left');
+                if ($has_salesos_items) {
+                    $this->db->select("{$db_prefix}returns_order_items.*, {$db_prefix}salesos_order_items.name as product_name, {$db_prefix}salesos_order_items.sku as product_sku, {$db_prefix}salesos_order_items.product_id");
+                    $this->db->join($db_prefix . 'salesos_order_items', $db_prefix . 'salesos_order_items.id = ' . $db_prefix . 'returns_order_items.order_item_id', 'left');
+                } else {
+                    $this->db->select("{$db_prefix}returns_order_items.*, '' as product_name, '' as product_sku, 0 as product_id");
+                }
                 $this->db->where('return_order_id', $id);
                 $ret->items = $this->db->get($db_prefix . 'returns_order_items')->result_array();
             }
             return $ret;
         }
 
-        $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id");
-        $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
+        if ($has_salesos) {
+            $this->db->select("{$db_prefix}returns_orders.*, {$db_prefix}salesos_orders.channel, {$db_prefix}salesos_orders.channel_ref_id");
+            $this->db->join($db_prefix . 'salesos_orders', $db_prefix . 'salesos_orders.id = ' . $db_prefix . 'returns_orders.salesos_order_id', 'left');
+        } else {
+            $this->db->select("{$db_prefix}returns_orders.*, '' AS channel, '' AS channel_ref_id");
+        }
         $this->db->order_by('created_at', 'DESC');
         return $this->db->get($db_prefix . 'returns_orders')->result_array();
     }
@@ -141,6 +156,9 @@ class Returns_model extends App_Model
      */
     public function get_eligible_order_items($order_id)
     {
+        if (!$this->app_modules->is_active('salesos')) {
+            return [];
+        }
         $db_prefix = db_prefix();
         $this->load->model('salesos/salesos_model');
         $items = $this->salesos_model->get_order_items((int) $order_id);
@@ -170,6 +188,9 @@ class Returns_model extends App_Model
      */
     private function trigger_stock_adjustment($return_id)
     {
+        if (!$this->app_modules->is_active('inventory')) {
+            return;
+        }
         $db_prefix = db_prefix();
         $ret = $this->get($return_id);
         if (!$ret || empty($ret->items)) {

@@ -1,0 +1,21 @@
+{
+    "name": "salesos/salesos",
+    "description": "SalesOS Module for Perfex CRM with Licentra licensing",
+    "type": "perfex-module",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "/home/fizz/Projects/licentra/packages/codeigniter-sdk"
+        },
+        {
+            "type": "path",
+            "url": "/home/fizz/Projects/licentra/packages/php-sdk"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "licentra/codeigniter-sdk": "@dev"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

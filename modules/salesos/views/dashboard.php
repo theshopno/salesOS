@@ -1,125 +1,546 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php init_head(); ?>
 
+<style>
+/* ── Modern Command Center Styles ── */
+.dash-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.dash-quick-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.dash-quick-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    text-decoration: none !important;
+}
+.dash-quick-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+}
+
+/* ── KPI Metric Cards ── */
+.dash-kpi-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    min-height: 84px;
+}
+.dash-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px -2px rgba(0,0,0,0.08);
+    border-color: #cbd5e1;
+}
+.dash-kpi-lbl {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+}
+.dash-kpi-val {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.dash-kpi-sub {
+    font-size: 11px;
+    display: block;
+    margin-top: 3px;
+}
+.dash-kpi-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* ── Panel Box Design ── */
+.dash-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+.dash-panel-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafafa;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+.dash-panel-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dash-panel-body {
+    padding: 18px;
+}
+
+/* ── Channel & Status Badges ── */
+.pill-channel-woo {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-pos {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-pos-online {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-channel-manual {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.pill-status {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    letter-spacing: 0.3px;
+}
+.pill-status-confirmed { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.pill-status-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.pill-status-processing { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.pill-status-delivered { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+.pill-status-cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* ── WhatsApp & Action Buttons ── */
+.btn-whatsapp-quick {
+    background: #25d366;
+    color: #fff !important;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(37, 211, 102, 0.25);
+}
+.btn-whatsapp-quick:hover { background: #128c7e; }
+.btn-whatsapp-quick i, .fa-whatsapp {
+    font-family: 'Font Awesome 6 Brands', 'FontAwesome' !important;
+    font-weight: 400 !important;
+}
+
+/* ── Pulse Dots ── */
+.pulse-dot-green {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #22c55e;
+    display: inline-block;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+.pulse-dot-grey {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #94a3b8;
+    display: inline-block;
+}
+</style>
+
 <div id="wrapper">
     <div class="content">
         <div class="row">
             <div class="col-md-12">
-                <!-- Header -->
-                <div class="row">
-                    <div class="col-md-12 mbot20">
-                        <div class="pull-right">
-                            <?php if (staff_can('settings', 'salesos')): ?>
-                                <a href="<?= admin_url('salesos/integrations') ?>" class="btn btn-primary">
-                                    <i class="fa fa-cogs"></i> Manage Integrations
-                                </a>
-                            <?php endif; ?>
+                
+                <!-- ── Top Header & Command Launchpad ── -->
+                <div class="dash-header-bar">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); display: flex; align-items: center; justify-content: center; color: #ffffff; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); font-size: 18px; flex-shrink: 0;">
+                            <i class="fa fa-store"></i>
                         </div>
-                        <h4 class="no-margin bold font-medium text-primary">E-commerce Suite Dashboard</h4>
-                        <span class="text-muted">Master control panel for salesos family modules.</span>
+                        <div>
+                            <h4 class="no-margin bold" style="font-size: 19px; color: #0f172a; letter-spacing: -0.3px;">
+                                E-commerce & Retail Command Center
+                            </h4>
+                            <span class="text-muted" style="font-size: 12px; display: block; margin-top: 2px;">
+                                লাইভ সেলস, ওমনি-চ্যানেল ইনভেন্টরি, কুরিয়ার ও অপারেশনস মনিটরিং
+                            </span>
+                        </div>
+                    </div>
+                    <div class="dash-quick-actions">
+                        <a href="<?= admin_url('pos') ?>" class="dash-quick-btn btn-success">
+                            <i class="fa fa-desktop"></i> + New POS Sale
+                        </a>
+                        <a href="<?= admin_url('salesos/orders') ?>" class="dash-quick-btn btn-primary">
+                            <i class="fa fa-shopping-cart"></i> Order Manager
+                        </a>
+                        <a href="<?= admin_url('salesos/confirmations') ?>" class="dash-quick-btn btn-warning" title="কল ও কনফার্মেশনের জন্য অপেক্ষমান">
+                            <i class="fa fa-phone"></i> Confirmations <?= $pending_count > 0 ? '<span class="badge" style="background:#fff; color:#b45309; font-weight:bold; margin-left:4px;">' . $pending_count . '</span>' : '' ?>
+                        </a>
+                        <a href="<?= admin_url('salesos/settings?tab=channels') ?>" class="dash-quick-btn btn-default" style="border-color: #cbd5e1;">
+                            <i class="fa fa-cog"></i> Integrations
+                        </a>
                     </div>
                 </div>
 
-                <!-- Stats Grid (Modern Flexbox Style) -->
-                <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="panel_s" style="margin-bottom: 0;">
-                            <div class="panel-body text-center">
-                                <h3 class="bold no-margin text-success"><?= salesos_format_number($total_sales) ?> BDT</h3>
-                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Sales</span>
+                <!-- ── Tier-1 Executive KPI Metric Cards (6 Cards) ── -->
+                <div class="row mbot10">
+                    <!-- Card 1: Total Sales & Revenue -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #2563eb;">মোট সেলস</div>
+                                <div class="dash-kpi-val" style="color: #1d4ed8;"><?= salesos_format_number($total_sales) ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">BDT</span></div>
+                                <span class="dash-kpi-sub text-muted">আদায়: <?= salesos_format_number($total_revenue) ?> BDT</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa fa-shopping-basket"></i>
                             </div>
                         </div>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="panel_s" style="margin-bottom: 0;">
-                            <div class="panel-body text-center">
-                                <h3 class="bold no-margin" style="color: #6366f1;"><?= salesos_format_number($total_revenue) ?> BDT</h3>
-                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Revenue</span>
+                    <!-- Card 2: Today's Snapshot -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #059669;">আজকের সেলস</div>
+                                <div class="dash-kpi-val" style="color: #047857;"><?= salesos_format_number($today_sales) ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">BDT</span></div>
+                                <span class="dash-kpi-sub text-muted">আজকের অর্ডার: <?= (int)$today_orders ?> টি</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #ecfdf5; color: #059669;">
+                                <i class="fa fa-calendar-check"></i>
                             </div>
                         </div>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="panel_s" style="margin-bottom: 0;">
-                            <div class="panel-body text-center">
-                                <h3 class="bold no-margin text-danger"><?= salesos_format_number($total_due) ?> BDT</h3>
-                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Due</span>
+                    <!-- Card 3: This Month -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #7c3aed;">এই মাসের সেলস</div>
+                                <div class="dash-kpi-val" style="color: #6d28d9;"><?= salesos_format_number($month_sales) ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">BDT</span></div>
+                                <span class="dash-kpi-sub text-muted">মোট অর্ডার: <?= (int)$month_orders ?> টি</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #f5f3ff; color: #7c3aed;">
+                                <i class="fa fa-bar-chart"></i>
                             </div>
                         </div>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="panel_s" style="margin-bottom: 0;">
-                            <div class="panel-body text-center">
-                                <h3 class="bold no-margin text-primary"><?= (int) $total_orders ?></h3>
-                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Total Orders</span>
+                    <!-- Card 4: Pending Confirmation -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #d97706;">অপেক্ষমান (Pending)</div>
+                                <div class="dash-kpi-val" style="color: #b45309;"><?= (int)$pending_count ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">টি</span></div>
+                                <span class="dash-kpi-sub text-muted">কল ও ভেরিফিকেশন বাকি</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #fef3c7; color: #d97706;">
+                                <i class="fa fa-phone"></i>
                             </div>
                         </div>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <div class="panel_s" style="margin-bottom: 0;">
-                            <div class="panel-body text-center">
-                                <h3 class="bold no-margin text-info"><?= count($channels) ?></h3>
-                                <span class="text-muted text-uppercase font-medium" style="font-size: 11px;">Active Channels</span>
+                    <!-- Card 5: Ready / Processing -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #4f46e5;">প্রসেসিং ও প্রস্তুত</div>
+                                <div class="dash-kpi-val" style="color: #4338ca;"><?= (int)$ready_count ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">টি</span></div>
+                                <span class="dash-kpi-sub text-muted">প্যাকিং ও ডিসপ্যাচ</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #e0e7ff; color: #4f46e5;">
+                                <i class="fa fa-cube"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Card 6: High Risk Fraud Alert -->
+                    <div class="col-md-2 col-sm-4 col-xs-6">
+                        <div class="dash-kpi-card">
+                            <div>
+                                <div class="dash-kpi-lbl" style="color: #dc2626;">উচ্চ ঝুঁকি অ্যালার্ট</div>
+                                <div class="dash-kpi-val" style="color: #b91c1c;"><?= (int)$high_risk_count ?> <span style="font-size: 11px; font-weight: normal; color: #64748b;">টি</span></div>
+                                <span class="dash-kpi-sub text-muted">BDCourier ফ্ল্যাগড</span>
+                            </div>
+                            <div class="dash-kpi-icon" style="background: #fee2e2; color: #dc2626;">
+                                <i class="fa fa-shield"></i>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Main Content Row -->
+                <!-- ── Visual Analytics Row (7-Day Trend Chart + Omni-Channel Share) ── -->
                 <div class="row">
-                    <!-- Recent Orders -->
+                    <!-- Left: 7-Day Trend Line Chart -->
                     <div class="col-md-8">
-                        <div class="panel_s">
-                            <div class="panel-body">
-                                <h4 class="no-margin font-medium"><i class="fa fa-shopping-cart"></i> Recent Orders</h4>
-                                <hr class="hr-panel-heading" />
-                                
+                        <div class="dash-panel">
+                            <div class="dash-panel-header">
+                                <h4><i class="fa fa-area-chart text-primary"></i> ৭ দিনের সেলস ও রেভিনিউ ট্রেন্ড (Omni-channel Daily Trend)</h4>
+                                <span class="text-muted" style="font-size: 11px;">গত ৭ দিনের চ্যানেলভিত্তিক বিক্রয়</span>
+                            </div>
+                            <div class="dash-panel-body">
+                                <div style="position: relative; height: 215px;">
+                                    <canvas id="salesTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Omni-Channel Share & Pipeline Funnel -->
+                    <div class="col-md-4">
+                        <div class="dash-panel">
+                            <div class="dash-panel-header">
+                                <h4><i class="fa fa-pie-chart text-primary"></i> ওমনি-চ্যানেল রেভিনিউ শেয়ার</h4>
+                                <span class="text-muted" style="font-size: 11px;">মোট কনফার্মড: <?= salesos_format_number($total_sales) ?> BDT</span>
+                            </div>
+                            <div class="dash-panel-body" style="padding-bottom: 12px;">
+                                <?php if (empty($channels)): ?>
+                                    <p class="text-muted text-center no-margin">No channel data available.</p>
+                                <?php else: ?>
+                                    <?php foreach ($channels as $ch): ?>
+                                        <?php 
+                                            $raw_ch = strtolower($ch['channel']);
+                                            $ch_name = strtoupper($ch['channel']);
+                                            $ch_icon = 'fa-shopping-bag';
+                                            $bar_color = '#2563eb';
+                                            if ($raw_ch === 'woo' || $raw_ch === 'woocommerce') { 
+                                                $ch_name = 'WooCommerce Store'; 
+                                                $ch_icon = 'fa-shopping-cart'; 
+                                                $bar_color = '#7c3aed'; 
+                                            }
+                                            elseif ($raw_ch === 'pos') { 
+                                                $ch_name = 'POS Counter'; 
+                                                $ch_icon = 'fa-desktop'; 
+                                                $bar_color = '#059669'; 
+                                            }
+                                            elseif ($raw_ch === 'manual') { 
+                                                $ch_name = 'Manual / Direct'; 
+                                                $ch_icon = 'fa-phone'; 
+                                                $bar_color = '#ea580c'; 
+                                            }
+                                            $share = (float)$ch['share_percent'];
+                                        ?>
+                                        <div style="margin-bottom: 14px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                                <span style="font-weight: 700; font-size: 12px; color: #0f172a;">
+                                                    <i class="fa <?= $ch_icon ?>" style="color: <?= $bar_color ?>; margin-right: 5px;"></i> <?= $ch_name ?>
+                                                </span>
+                                                <span style="font-size: 12px; font-weight: 700; color: #1e293b;">
+                                                    <?= salesos_format_number($ch['confirmed_revenue']) ?> <span style="font-size: 10px; font-weight: normal; color: #64748b;">BDT</span>
+                                                </span>
+                                            </div>
+                                            <div class="progress" style="height: 18px; margin-bottom: 4px; background-color: #f1f5f9; border-radius: 9px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); overflow: hidden;">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: <?= max(14, $share) ?>%; background-color: <?= $bar_color ?>; line-height: 18px; font-size: 11px; font-weight: 700; color: #ffffff; text-align: center; border-radius: 9px; transition: width 0.6s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                                    <?= $share ?>%
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b;">
+                                                <span><i class="fa fa-shopping-basket" style="font-size: 10px; color: #94a3b8; margin-right: 3px;"></i> মোট অর্ডার: <strong style="color: #334155;"><?= (int)$ch['order_count'] ?></strong> টি</span>
+                                                <span>শেয়ার: <strong style="color: #334155;"><?= $share ?>%</strong></span>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+
+                                <hr style="margin: 10px 0 12px 0; border-color: #f1f5f9;" />
+                                <!-- Order Status Funnel -->
+                                <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px;">
+                                    <div style="flex: 1;">
+                                        <span style="font-weight: 700; color: #059669; font-size: 13px; display: block;"><?= $confirmed_count ?></span>
+                                        <small class="text-muted">Confirmed</small>
+                                    </div>
+                                    <div style="flex: 1; border-left: 1px solid #f1f5f9;">
+                                        <span style="font-weight: 700; color: #4338ca; font-size: 13px; display: block;"><?= $processing_count ?></span>
+                                        <small class="text-muted">Processing</small>
+                                    </div>
+                                    <div style="flex: 1; border-left: 1px solid #f1f5f9;">
+                                        <span style="font-weight: 700; color: #d97706; font-size: 13px; display: block;"><?= $pending_count ?></span>
+                                        <small class="text-muted">Pending</small>
+                                    </div>
+                                    <div style="flex: 1; border-left: 1px solid #f1f5f9;">
+                                        <span style="font-weight: 700; color: #dc2626; font-size: 13px; display: block;"><?= $cancelled_count ?></span>
+                                        <small class="text-muted">Cancelled</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Operational Bottom Row: Recent Orders & Action Widgets ── -->
+                <div class="row">
+                    <!-- Left: Recent Orders Live Stream -->
+                    <div class="col-md-8">
+                        <div class="dash-panel">
+                            <div class="dash-panel-header">
+                                <h4><i class="fa fa-clock text-primary" style="margin-right: 6px;"></i> সাম্প্রতিক অর্ডারসমূহ (Live Orders Feed)</h4>
+                                <a href="<?= admin_url('salesos/orders') ?>" class="btn btn-default btn-xs" style="font-weight: 600; border-color: #cbd5e1;">
+                                    সব অর্ডার দেখুন (<?= (int)$total_orders ?>) <i class="fa fa-arrow-right" style="font-size: 10px;"></i>
+                                </a>
+                            </div>
+                            <div class="dash-panel-body no-padding">
                                 <?php if (empty($recent_orders)): ?>
-                                    <p class="text-muted no-margin">No orders imported yet.</p>
+                                    <div style="padding: 30px; text-align: center; color: #94a3b8;">
+                                        <i class="fa fa-shopping-basket fa-3x" style="color: #cbd5e1; margin-bottom: 8px;"></i>
+                                        <p class="no-margin">কোনো অর্ডার পাওয়া যায়নি।</p>
+                                    </div>
                                 <?php else: ?>
                                     <div class="table-responsive">
-                                        <table class="table table-bordered table-striped no-mtop">
+                                        <table class="table table-bordered table-striped no-margin" style="font-size: 12px;">
                                             <thead>
-                                                <tr>
-                                                    <th>ID</th>
-                                                    <th>Customer</th>
-                                                    <th>Channel</th>
-                                                    <th>Ref ID</th>
-                                                    <th>Total (BDT)</th>
-                                                    <th>Status</th>
-                                                    <th>Order Date</th>
-                                                    <th class="text-center">Actions</th>
+                                                <tr style="background: #f8fafc; font-size: 11px;">
+                                                    <th style="width: 60px;"># ID</th>
+                                                    <th>Customer & Phone</th>
+                                                    <th style="width: 85px;">Channel</th>
+                                                    <th style="width: 110px;">Amount</th>
+                                                    <th style="width: 95px; text-align: center;">Status</th>
+                                                    <th style="width: 120px;">Courier</th>
+                                                    <th class="text-center" style="width: 95px;">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($recent_orders as $order): ?>
+                                                    <?php 
+                                                        $ch = strtolower($order['channel'] ?? '');
+                                                        $st = strtolower($order['status'] ?? 'pending');
+                                                        $clean_phone = preg_replace('/[^0-9]/', '', (string)$order['customer_phone']);
+                                                        if (strpos($clean_phone, '88') !== 0 && strlen($clean_phone) === 11) {
+                                                            $clean_phone = '88' . $clean_phone;
+                                                        }
+                                                        $status_class = 'pill-status-pending';
+                                                        if ($st === 'confirmed') $status_class = 'pill-status-confirmed';
+                                                        elseif ($st === 'processing') $status_class = 'pill-status-processing';
+                                                        elseif ($st === 'delivered') $status_class = 'pill-status-delivered';
+                                                        elseif ($st === 'cancelled') $status_class = 'pill-status-cancelled';
+                                                    ?>
                                                     <tr>
-                                                        <td><?= $order['id'] ?></td>
+                                                        <td><strong>#<?= $order['id'] ?></strong></td>
                                                         <td>
-                                                            <strong class="display-block"><?= e($order['customer_name']) ?></strong>
-                                                            <small class="text-muted"><?= e($order['customer_phone'] ?: 'No Phone') ?></small>
+                                                            <strong style="color: #0f172a; display: block; font-size: 12px;"><?= e($order['customer_name']) ?></strong>
+                                                            <div style="display: flex; gap: 4px; align-items: center; margin-top: 2px;">
+                                                                <?php if (!empty($order['customer_phone'])): ?>
+                                                                    <a href="tel:<?= e($order['customer_phone']) ?>" class="text-muted" style="font-size: 11px; text-decoration: none;">
+                                                                        <i class="fa fa-phone" style="font-size: 10px;"></i> <?= e($order['customer_phone']) ?>
+                                                                    </a>
+                                                                    <?php if (!empty($clean_phone)): ?>
+                                                                        <a href="https://wa.me/<?= e($clean_phone) ?>" target="_blank" class="btn-whatsapp-quick" title="WhatsApp এ মেসেজ">
+                                                                            <i class="fa-brands fa-whatsapp"></i> Chat
+                                                                        </a>
+                                                                    <?php endif; ?>
+                                                                <?php else: ?>
+                                                                    <small class="text-muted">No Phone</small>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         </td>
                                                         <td>
-                                                            <span class="label label-default">
-                                                                <?= strtoupper(e($order['channel'])) ?>
-                                                            </span>
+                                                            <?php if ($ch === 'woo'): ?>
+                                                                <span class="pill-channel-woo"><i class="fa fa-shopping-cart"></i> WOO</span>
+                                                            <?php elseif ($ch === 'pos'): ?>
+                                                                <span class="pill-channel-pos"><i class="fa fa-desktop"></i> POS</span>
+                                                            <?php elseif ($ch === 'pos_online'): ?>
+                                                                <span class="pill-channel-pos-online"><i class="fa fa-truck"></i> POS ONLINE</span>
+                                                            <?php else: ?>
+                                                                <span class="pill-channel-manual"><i class="fa fa-phone"></i> <?= strtoupper(e($ch ?: 'MANUAL')) ?></span>
+                                                            <?php endif; ?>
                                                         </td>
-                                                        <td><?= e($order['channel_ref_id'] ?: '-') ?></td>
-                                                        <td><strong><?= salesos_format_number($order['total']) ?></strong></td>
                                                         <td>
-                                                            <?php 
-                                                                $status_class = 'info';
-                                                                if ($order['status'] === 'confirmed') $status_class = 'success';
-                                                                if ($order['status'] === 'cancelled') $status_class = 'danger';
-                                                            ?>
-                                                            <span class="label label-<?= $status_class ?>">
-                                                                <?= strtoupper(e($order['status'])) ?>
-                                                            </span>
+                                                            <strong style="color: #0f172a;"><?= salesos_format_number($order['total']) ?> BDT</strong>
+                                                            <small class="display-block text-muted" style="font-size: 10px;">
+                                                                <?= (int)($order['item_count'] ?? 1) ?> item<?= ($order['item_count'] ?? 1) > 1 ? 's' : '' ?>
+                                                            </small>
                                                         </td>
-                                                        <td><?= e($order['order_date']) ?></td>
-                                                        <td class="text-center">
-                                                            <button class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Details">
-                                                                <i class="fa fa-eye"></i> View
+                                                        <td style="text-align: center;">
+                                                            <span class="pill-status <?= $status_class ?>"><?= strtoupper(e($st)) ?></span>
+                                                        </td>
+                                                        <td>
+                                                            <?php if ($ch === 'pos'): ?>
+                                                                <span class="label" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 3px 6px;">
+                                                                    <i class="fa fa-shopping-bag"></i> In-store
+                                                                </span>
+                                                            <?php elseif (!empty($order['consignment_id'])): ?>
+                                                                <span class="label" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 10px; padding: 3px 6px;">
+                                                                    <i class="fa fa-truck"></i> <?= e($order['courier_provider'] ? strtoupper($order['courier_provider']) : 'Booked') ?>
+                                                                </span>
+                                                            <?php else: ?>
+                                                                <span class="label label-warning" style="font-size: 10px; padding: 3px 6px;">
+                                                                    <i class="fa fa-clock"></i> Unbooked
+                                                                </span>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                        <td class="text-center" style="white-space: nowrap;">
+                                                            <button type="button" class="btn btn-default btn-xs view-order-details-btn" data-id="<?= $order['id'] ?>" title="View Order" style="padding: 3px 6px;">
+                                                                <i class="fa fa-eye text-primary"></i>
                                                             </button>
+                                                            <a href="<?= admin_url('salesos/print_invoice/' . $order['id']) ?>" target="_blank" class="btn btn-default btn-xs" title="Print Invoice" style="padding: 3px 6px;">
+                                                                <i class="fa fa-print"></i>
+                                                            </a>
+                                                            <a href="<?= admin_url('salesos/print_label/' . $order['id']) ?>" target="_blank" class="btn btn-default btn-xs" title="Print 55mm Label" style="padding: 3px 6px;">
+                                                                <i class="fa fa-tag text-warning"></i>
+                                                            </a>
                                                         </td>
                                                     </tr>
                                                 <?php endforeach; ?>
@@ -131,50 +552,130 @@
                         </div>
                     </div>
 
-                    <!-- Channel breakdown & Events -->
+                    <!-- Right: Action Hub & System Connectivity Pulse -->
                     <div class="col-md-4">
-                        <div class="panel_s mbot20">
-                            <div class="panel-body">
-                                <h4 class="no-margin font-medium"><i class="fa fa-pie-chart"></i> Channel Breakdown</h4>
-                                <hr class="hr-panel-heading" />
+                        
+                        <!-- Widget 1: Action Center (Urgent Attention) -->
+                        <div class="dash-panel mbot15">
+                            <div class="dash-panel-header">
+                                <h4><i class="fa fa-bell text-danger"></i> অ্যাকশন সেন্টার (Attention Needed)</h4>
+                                <span class="badge" style="background: #fee2e2; color: #991b1b; font-weight: 700;"><?= (count($urgent_risk_orders) + count($low_stock_products)) ?></span>
+                            </div>
+                            <div class="dash-panel-body" style="padding: 12px 15px;">
                                 
-                                <?php if (empty($channels)): ?>
-                                    <p class="text-muted text-center no-margin">No channel statistics available.</p>
-                                <?php else: ?>
-                                    <ul class="list-group no-margin">
-                                        <?php foreach ($channels as $ch): ?>
-                                            <li class="list-group-item">
-                                                <span class="badge"><?= (int) $ch['count'] ?> orders (<?= salesos_format_number($ch['revenue']) ?> BDT)</span>
-                                                <span class="bold"><?= strtoupper(e($ch['channel'])) ?></span>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                <!-- High Risk Alert Orders -->
+                                <?php if (!empty($urgent_risk_orders)): ?>
+                                    <div class="mbot12">
+                                        <span class="bold text-danger" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            <i class="fa fa-shield"></i> ফ্রড অ্যালার্ট অর্ডার (High Risk)
+                                        </span>
+                                        <div style="margin-top: 6px;">
+                                            <?php foreach ($urgent_risk_orders as $uo): ?>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 6px; margin-bottom: 6px;">
+                                                    <div>
+                                                        <strong style="color: #991b1b; font-size: 12px;">#<?= $uo['id'] ?> - <?= e($uo['customer_name']) ?></strong>
+                                                        <small class="display-block text-muted" style="font-size: 10px;"><?= e($uo['customer_phone']) ?> | BDCourier: <?= round((float)$uo['success_ratio']) ?>%</small>
+                                                    </div>
+                                                    <div>
+                                                        <a href="<?= admin_url('salesos/orders?search=' . $uo['id']) ?>" class="btn btn-danger btn-xs" style="font-size: 10px; padding: 2px 6px;">
+                                                            Review
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
                                 <?php endif; ?>
+
+                                <!-- Low Stock Warning -->
+                                <div>
+                                    <span class="bold text-warning" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                                        <i class="fa fa-exclamation-triangle"></i> CRM-First স্টক অ্যালার্ট (Low Stock)
+                                    </span>
+                                    <div style="margin-top: 6px;">
+                                        <?php if (empty($low_stock_products)): ?>
+                                            <small class="text-muted">সব পণ্যের পর্যাপ্ত স্টক রয়েছে।</small>
+                                        <?php else: ?>
+                                            <?php foreach (array_slice($low_stock_products, 0, 3) as $lp): ?>
+                                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 5px;">
+                                                    <div style="max-width: 65%;">
+                                                        <span style="font-size: 11px; font-weight: 600; color: #1e293b; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                            <?= e($lp['name']) ?>
+                                                        </span>
+                                                        <small class="text-muted" style="font-size: 10px;"><?= salesos_format_number($lp['rate']) ?> BDT</small>
+                                                    </div>
+                                                    <div>
+                                                        <span class="label" style="background: <?= (float)$lp['stock'] <= 0 ? '#fee2e2; color: #991b1b; border: 1px solid #fca5a5;' : '#fef3c7; color: #92400e; border: 1px solid #fde68a;' ?> font-size: 10px; font-weight: 700;">
+                                                            <?= (float)$lp['stock'] ?> PCS
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                            <?php if (count($low_stock_products) > 3): ?>
+                                                <div style="text-align: right; margin-top: 3px;">
+                                                    <a href="<?= admin_url('inventory/products') ?>" style="font-size: 10px; color: #64748b; text-decoration: none;">
+                                                        সব স্টক দেখুন &raquo;
+                                                    </a>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
 
-                        <div class="panel_s">
-                            <div class="panel-body">
-                                <h4 class="no-margin font-medium"><i class="fa fa-history"></i> Recent Activity Logs</h4>
-                                <hr class="hr-panel-heading" />
-                                
-                                <?php if (empty($recent_events)): ?>
-                                    <p class="text-muted no-margin">No integration events logged yet.</p>
-                                <?php else: ?>
-                                    <div class="activity-feed">
-                                        <?php foreach ($recent_events as $event): ?>
-                                            <div class="feed-item">
-                                                <div class="date"><?= e($event['created_at']) ?></div>
-                                                <div class="text">
-                                                    <strong><?= e($event['event_type']) ?></strong>
-                                                    &mdash; Entity ID: <?= e($event['entity_id']) ?>
-                                                </div>
-                                            </div>
-                                        <?php endforeach; ?>
+                        <!-- Widget 2: Live System & Integration Pulse -->
+                        <div class="dash-panel">
+                            <div class="dash-panel-header">
+                                <h4><i class="fa fa-heartbeat text-success"></i> সিস্টেম ও ইন্টিগ্রেশন পালস</h4>
+                                <span class="text-muted" style="font-size: 11px;">কানেক্টিভিটি স্ট্যাটাস</span>
+                            </div>
+                            <div class="dash-panel-body" style="padding: 12px 15px;">
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="<?= $system_health['woo'] ? 'pulse-dot-green' : 'pulse-dot-grey' ?>"></span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #1e293b;">WooCommerce Store</span>
+                                        </div>
+                                        <span class="label label-<?= $system_health['woo'] ? 'success' : 'default' ?>" style="font-size: 10px;">
+                                            <?= $system_health['woo'] ? 'Live Sync' : 'Inactive' ?>
+                                        </span>
                                     </div>
-                                <?php endif; ?>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="<?= $system_health['courier'] ? 'pulse-dot-green' : 'pulse-dot-grey' ?>"></span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #1e293b;">Steadfast Courier</span>
+                                        </div>
+                                        <span class="label label-<?= $system_health['courier'] ? 'success' : 'default' ?>" style="font-size: 10px;">
+                                            <?= $system_health['courier'] ? 'Ready (StoveBD)' : 'Inactive' ?>
+                                        </span>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="<?= $system_health['fraud'] ? 'pulse-dot-green' : 'pulse-dot-grey' ?>"></span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #1e293b;">BDCourier Fraud Guard</span>
+                                        </div>
+                                        <span class="label label-<?= $system_health['fraud'] ? 'success' : 'default' ?>" style="font-size: 10px;">
+                                            <?= $system_health['fraud'] ? 'Active Shield' : 'Inactive' ?>
+                                        </span>
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="<?= $system_health['whatsapp'] ? 'pulse-dot-green' : 'pulse-dot-grey' ?>"></span>
+                                            <span style="font-size: 12px; font-weight: 600; color: #1e293b;">WhatsApp Gateway</span>
+                                        </div>
+                                        <span class="label label-<?= $system_health['whatsapp'] ? 'success' : 'default' ?>" style="font-size: 10px;">
+                                            <?= $system_health['whatsapp'] ? 'Connected (BizBot)' : 'Inactive' ?>
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -403,6 +904,8 @@
 
 <?php init_tail(); ?>
 
+<script src="<?= base_url('assets/plugins/Chart.js/Chart.bundle.min.js') ?>"></script>
+
 <script>
 window.salesos_remove_decimals_on_zero = '<?= get_option('remove_decimals_on_zero') ?: '0' ?>';
 function salesos_format_number(number, decimals) {
@@ -416,6 +919,107 @@ function salesos_format_number(number, decimals) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ── 7-Day Sales & Revenue Trend Chart ──
+    try {
+        var chartData = <?= json_encode($chart_data ?? ['labels' => [], 'pos' => [], 'woo' => [], 'manual' => []]) ?>;
+        var chartCanvas = document.getElementById('salesTrendChart');
+        if (chartCanvas && typeof Chart !== 'undefined') {
+            new Chart(chartCanvas, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'POS বিক্রয় (৳)',
+                            data: chartData.pos,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            borderWidth: 2,
+                            lineTension: 0.35,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#10b981',
+                            fill: true
+                        },
+                        {
+                            label: 'WooCommerce (৳)',
+                            data: chartData.woo,
+                            borderColor: '#7c3aed',
+                            backgroundColor: 'rgba(124, 58, 237, 0.08)',
+                            borderWidth: 2,
+                            lineTension: 0.35,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#7c3aed',
+                            fill: true
+                        },
+                        {
+                            label: 'Direct / Manual (৳)',
+                            data: chartData.manual,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            borderWidth: 2,
+                            lineTension: 0.35,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#2563eb',
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            fontColor: '#475569',
+                            fontSize: 11,
+                            padding: 12
+                        }
+                    },
+                    tooltips: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(tooltipItem, data) {
+                                var label = data.datasets[tooltipItem.datasetIndex].label || '';
+                                return label + ': ' + salesos_format_number(tooltipItem.yLabel) + ' BDT';
+                            }
+                        }
+                    },
+                    scales: {
+                        xAxes: [{
+                            gridLines: {
+                                display: false
+                            },
+                            ticks: {
+                                fontColor: '#64748b',
+                                fontSize: 10
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true,
+                                fontColor: '#64748b',
+                                fontSize: 10,
+                                callback: function(value) {
+                                    return value >= 1000 ? (value / 1000) + 'k' : value;
+                                }
+                            },
+                            gridLines: {
+                                color: '#f1f5f9',
+                                drawBorder: false
+                            }
+                        }]
+                    }
+                }
+            });
+        }
+    } catch(e) {
+        console.error('Error initializing SalesOS trend chart:', e);
+    }
     $('.view-order-details-btn').on('click', function() {
         var orderId = $(this).data('id');
         

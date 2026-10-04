@@ -25,10 +25,29 @@ hooks()->add_action('app_init',   'purchases_load_resources');
 hooks()->add_action('admin_init', 'purchases_register_menu');
 hooks()->add_action('admin_init', 'purchases_register_permissions');
 
+if (!function_exists('salesos_format_number')) {
+    function salesos_format_number($number, $decimals = null)
+    {
+        if (!is_numeric($number)) {
+            return $number;
+        }
+        if ($decimals === null) {
+            $decimals = function_exists('get_decimal_places') ? get_decimal_places() : 2;
+        }
+        if (get_option('remove_decimals_on_zero') == 1) {
+            if (round($number, $decimals) == (int)$number) {
+                $decimals = 0;
+            }
+        }
+        $decimal_separator  = get_option('decimal_separator') ?: '.';
+        $thousand_separator = get_option('thousand_separator') ?: '';
+        return number_format((float)$number, $decimals, $decimal_separator, $thousand_separator);
+    }
+}
+
 function purchases_load_resources(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
     $CI->load->model(PURCHASES_MODULE_NAME . '/purchases_model');
 }
 
@@ -50,15 +69,37 @@ function purchases_register_permissions(): void
 function purchases_register_menu(): void
 {
     $CI = &get_instance();
-    if (!$CI->app_modules->is_active('salesos') || !$CI->app_modules->is_active('inventory')) { return; } // Guard
-    if (!salesos_ecommerce_enabled()) { return; } // e-commerce switched off in SalesOS settings
+    if ($CI->app_modules->is_active('salesos') && function_exists('salesos_ecommerce_enabled') && !salesos_ecommerce_enabled()) { 
+        return; 
+    }
     if (!staff_can('view', PURCHASES_MODULE_NAME)) { return; }
 
-    $CI->app_menu->add_sidebar_children_item('salesos', [
-        'slug'     => 'purchases-orders', 
-        'name'     => 'Purchase Orders',
-        'href'     => admin_url('purchases/purchase_orders'),
-        // Restocking is regular work; supplier records are not.
-        'position' => 6,
-    ]);
+    if ($CI->app_modules->is_active('salesos')) {
+        $CI->app_menu->add_sidebar_children_item('salesos', [
+            'slug'     => 'purchases-orders', 
+            'name'     => 'Purchase Orders',
+            'href'     => admin_url('purchases/purchase_orders'),
+            'position' => 6,
+        ]);
+    } else {
+        $CI->app_menu->add_sidebar_menu_item('purchases-main', [
+            'slug'     => 'purchases-main',
+            'name'     => 'Purchases',
+            'icon'     => 'fa fa-shopping-bag',
+            'href'     => admin_url('purchases/purchase_orders'),
+            'position' => 28,
+        ]);
+        $CI->app_menu->add_sidebar_children_item('purchases-main', [
+            'slug'     => 'purchases-orders',
+            'name'     => 'Purchase Orders',
+            'href'     => admin_url('purchases/purchase_orders'),
+            'position' => 5,
+        ]);
+        $CI->app_menu->add_sidebar_children_item('purchases-main', [
+            'slug'     => 'purchases-suppliers',
+            'name'     => 'Suppliers',
+            'href'     => admin_url('purchases/suppliers'),
+            'position' => 10,
+        ]);
+    }
 }
