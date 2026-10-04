@@ -228,7 +228,7 @@ class Salesos extends AdminController
 
         // 7. Action Hub: High-Risk Orders Needing Attention (Top 3)
         $urgent_risk_orders = [];
-        if ($high_risk_count > 0) {
+        if ($high_risk_count > 0 && $this->db->table_exists($db_prefix . 'fraudcheck_lookups')) {
             $urg_sql = "
                 SELECT 
                     o.id,
@@ -285,7 +285,7 @@ class Salesos extends AdminController
             if ($cr['owner_module'] === 'courier') $has_courier = true;
             if ($cr['owner_module'] === 'fraudcheck') $has_fraud = true;
         }
-        if (!$has_courier && $courier_active) {
+        if (!$has_courier && $courier_active && $this->db->table_exists($db_prefix . 'courier_accounts')) {
             $ca_count = (int) $this->db->count_all_results($db_prefix . 'courier_accounts');
             if ($ca_count > 0) $has_courier = true;
         }
@@ -299,6 +299,24 @@ class Salesos extends AdminController
         ];
 
         // 10. Enriched Recent 10 Orders with Courier tracking, Item count, and Fraud risk
+        $courier_has_tables = $this->db->table_exists($db_prefix . 'courier_consignments')
+            && $this->db->table_exists($db_prefix . 'courier_accounts');
+        $courier_select = $courier_has_tables
+            ? "cc.id as consignment_id, cc.status as courier_status, cc.tracking_id as courier_tracking_id, ca.provider as courier_provider, ca.label as courier_account_name"
+            : "NULL as consignment_id, NULL as courier_status, NULL as courier_tracking_id, NULL as courier_provider, NULL as courier_account_name";
+        $courier_join = $courier_has_tables
+            ? "LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id
+               LEFT JOIN {$db_prefix}courier_accounts ca ON ca.id = cc.courier_account_id"
+            : "";
+
+        $fraud_has_tables = $this->db->table_exists($db_prefix . 'fraudcheck_lookups');
+        $fraud_select = $fraud_has_tables
+            ? "fl.risk_level as fraud_risk_level, fl.success_ratio as fraud_success_ratio"
+            : "NULL as fraud_risk_level, NULL as fraud_success_ratio";
+        $fraud_join = $fraud_has_tables
+            ? "LEFT JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)"
+            : "";
+
         $sql = "
             SELECT 
                 o.*,
@@ -311,21 +329,15 @@ class Salesos extends AdminController
                 COALESCE(con.phonenumber, c.phonenumber, l.phonenumber, '') as customer_phone,
                 COALESCE(c.address, l.address, '') as customer_address,
                 COALESCE(con.email, l.email, '') as customer_email,
-                cc.id as consignment_id,
-                cc.status as courier_status,
-                cc.tracking_id as courier_tracking_id,
-                ca.provider as courier_provider,
-                ca.label as courier_account_name,
-                fl.risk_level as fraud_risk_level,
-                fl.success_ratio as fraud_success_ratio,
+                {$courier_select},
+                {$fraud_select},
                 (SELECT COUNT(*) FROM {$db_prefix}salesos_order_items oi WHERE oi.order_id = o.id) as item_count
             FROM {$db_prefix}salesos_orders o
             LEFT JOIN {$db_prefix}contacts con ON con.userid = o.client_id AND con.is_primary = 1
             LEFT JOIN {$db_prefix}clients c ON c.userid = o.client_id
             LEFT JOIN {$db_prefix}leads l ON l.id = o.lead_id
-            LEFT JOIN {$db_prefix}courier_consignments cc ON cc.salesos_order_id = o.id
-            LEFT JOIN {$db_prefix}courier_accounts ca ON ca.id = cc.courier_account_id
-            LEFT JOIN {$db_prefix}fraudcheck_lookups fl ON (fl.phone = con.phonenumber OR fl.phone = c.phonenumber OR fl.phone = l.phonenumber)
+            {$courier_join}
+            {$fraud_join}
             WHERE o.channel != 'test_channel'
             ORDER BY o.created_at DESC
             LIMIT 10
@@ -334,7 +346,7 @@ class Salesos extends AdminController
 
         // Courier accounts for inline booking modal
         $data['courier_accounts'] = [];
-        if ($courier_active) {
+        if ($courier_active && $this->db->table_exists($db_prefix . 'courier_accounts')) {
             $this->load->model('courier/courier_model');
             $data['courier_accounts'] = $this->courier_model->get_accounts();
         }
@@ -686,7 +698,7 @@ class Salesos extends AdminController
         // Fetch Courier Accounts for Tab 2 — courier is an optional sibling module,
         // not a dependency of the kernel, so this must not fatal if it's inactive.
         $data['courier_accounts'] = [];
-        if ($this->app_modules->is_active('courier')) {
+        if ($this->app_modules->is_active('courier') && $this->db->table_exists(db_prefix() . 'courier_accounts')) {
             $this->load->model('courier/courier_model');
             $data['courier_accounts'] = $this->courier_model->get_accounts();
         }
@@ -837,7 +849,9 @@ class Salesos extends AdminController
         $db_prefix = db_prefix();
         $this->load->library('pagination');
 
-        $courier_active = $this->app_modules->is_active('courier');
+        $courier_active = $this->app_modules->is_active('courier')
+            && $this->db->table_exists($db_prefix . 'courier_consignments')
+            && $this->db->table_exists($db_prefix . 'courier_accounts');
         $data['courier_accounts'] = [];
         if ($courier_active) {
             $this->load->model('courier/courier_model');
