@@ -13,8 +13,11 @@
         }
     ],
     "require": {
-        "php": "^8.2",
+        "php": ">=7.4.0",
         "licentra/codeigniter-sdk": "@dev"
+    },
+    "config": {
+        "platform-check": false
     },
     "minimum-stability": "dev",
     "prefer-stable": true

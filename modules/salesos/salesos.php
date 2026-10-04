@@ -11,7 +11,11 @@ Requires at least: 2.3.4
 
 // ── Autoloader ───────────────────────────────────────────────────────────────
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
+    try {
+        require_once __DIR__ . '/vendor/autoload.php';
+    } catch (\Throwable $e) {
+        log_activity('SalesOS autoloader notice: ' . $e->getMessage());
+    }
 }
 
 define('SALESOS_MODULE_NAME', 'salesos');
