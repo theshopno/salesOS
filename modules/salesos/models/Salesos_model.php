@@ -1028,6 +1028,34 @@ class Salesos_model extends App_Model
         $db_prefix = db_prefix();
         $data = [];
 
+        // Safety fallback if database tables do not exist
+        if (!$this->db->table_exists($db_prefix . 'salesos_orders')) {
+            return [
+                'total_orders'         => 0,
+                'total_sales'          => 0.00,
+                'total_due'            => 0.00,
+                'total_revenue'        => 0.00,
+                'today_orders'         => 0,
+                'today_sales'          => 0.00,
+                'month_orders'         => 0,
+                'month_sales'          => 0.00,
+                'pending_count'        => 0,
+                'confirmed_count'      => 0,
+                'processing_count'     => 0,
+                'ready_count'          => 0,
+                'delivered_count'      => 0,
+                'cancelled_count'      => 0,
+                'courier_booked_count' => 0,
+                'collectable_cod'      => 0.00,
+                'high_risk_count'      => 0,
+                'channels'             => [],
+                'chart_data'           => ['labels' => [], 'pos' => [], 'woo' => [], 'manual' => []],
+                'urgent_risk_orders'   => [],
+                'low_stock_products'   => [],
+                'integration_health'   => ['woocommerce' => false, 'courier' => false, 'fraudcheck' => false],
+            ];
+        }
+
         // 1. Cumulative High-Level Stats
         $this->db->where('channel !=', 'test_channel');
         $data['total_orders'] = $this->db->count_all_results($db_prefix . 'salesos_orders');
@@ -1308,19 +1336,21 @@ class Salesos_model extends App_Model
         }
 
         // 10. Integration Health Statuses
-        $creds_sql = "
-            SELECT owner_module, label, is_active 
-            FROM {$db_prefix}salesos_credentials
-            WHERE is_active = 1
-        ";
-        $active_creds = $this->db->query($creds_sql)->result_array();
         $has_woo = false;
         $has_courier = false;
         $has_fraud = false;
-        foreach ($active_creds as $cr) {
-            if ($cr['owner_module'] === 'wcsync') $has_woo = true;
-            if ($cr['owner_module'] === 'courier') $has_courier = true;
-            if ($cr['owner_module'] === 'fraudcheck') $has_fraud = true;
+        if ($this->db->table_exists($db_prefix . 'salesos_credentials')) {
+            $creds_sql = "
+                SELECT owner_module, label, is_active 
+                FROM {$db_prefix}salesos_credentials
+                WHERE is_active = 1
+            ";
+            $active_creds = $this->db->query($creds_sql)->result_array();
+            foreach ($active_creds as $cr) {
+                if ($cr['owner_module'] === 'wcsync') $has_woo = true;
+                if ($cr['owner_module'] === 'courier') $has_courier = true;
+                if ($cr['owner_module'] === 'fraudcheck') $has_fraud = true;
+            }
         }
         if (!$has_courier && $courier_active) {
             $ca_count = (int) $this->db->count_all_results($db_prefix . 'courier_accounts');

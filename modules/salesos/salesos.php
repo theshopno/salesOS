@@ -37,6 +37,12 @@ hooks()->add_action('admin_init', 'salesos_register_permissions');
 function salesos_load_resources(): void
 {
     $CI = &get_instance();
+
+    // Self-healing migration guard: Ensure core tables exist even if activation was interrupted
+    if (!$CI->db->table_exists(db_prefix() . 'salesos_orders')) {
+        require_once __DIR__ . '/install.php';
+    }
+
     $CI->load->model(SALESOS_MODULE_NAME . '/salesos_model');
 
     salesos_init_licensing();
